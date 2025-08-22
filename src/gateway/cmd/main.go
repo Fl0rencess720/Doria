@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/conf"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/logging"
@@ -26,10 +27,9 @@ var (
 )
 
 func init() {
+	flag.Parse()
 	conf.Init()
-
 	logging.Init()
-
 	profiling.InitPyroscope(Name)
 
 }

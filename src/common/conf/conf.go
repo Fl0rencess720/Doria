@@ -1,19 +1,23 @@
 package conf
 
 import (
+	"flag"
+
 	"github.com/spf13/viper"
+)
+
+var (
+	configFile = flag.String("config", "configs", "path to the configuration file")
 )
 
 type Option func(*conf)
 
 type conf struct {
-	configDirPath  string
 	configFileType string
 	configFilename string
 }
 
 var c = &conf{
-	configDirPath:  "./configs",
 	configFileType: "yaml",
 	configFilename: "config",
 }
@@ -24,12 +28,6 @@ func apply(opts ...Option) *conf {
 		opt(newConf)
 	}
 	return newConf
-}
-
-func WithDirPath(dirPath string) Option {
-	return func(c *conf) {
-		c.configDirPath = dirPath
-	}
 }
 
 func WithFileType(fileType string) Option {
@@ -45,10 +43,10 @@ func WithFileName(filename string) Option {
 }
 
 func Init(opts ...Option) {
-	cur := apply(opts...)
 
+	cur := apply(opts...)
 	viper.SetConfigType(cur.configFileType)
-	viper.AddConfigPath(cur.configDirPath)
+	viper.AddConfigPath(*configFile)
 	viper.SetConfigName(cur.configFilename)
 	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
