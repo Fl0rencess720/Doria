@@ -9,9 +9,11 @@ require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/zap v1.1.5
 	github.com/gin-gonic/gin v1.10.1
+	github.com/google/wire v0.6.0
 	github.com/grafana/pyroscope-go v1.2.4
 	github.com/hashicorp/consul/api v1.32.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.20.1
 	go.opentelemetry.io/otel v1.37.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.37.0

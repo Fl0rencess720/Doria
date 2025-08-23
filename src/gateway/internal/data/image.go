@@ -1,8 +1,10 @@
 package data
 
-type imageRepo struct {
+import "github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
+
+type ImageRepo struct {
 }
 
-func NewImageRepo() *imageRepo {
-	return &imageRepo{}
+func NewImageRepo() controllers.ImageRepo {
+	return &ImageRepo{}
 }

@@ -1,4 +1,4 @@
 .PHONY: run
 
 run:
-	go run src/gateway/cmd/main.go --config src/gateway/configs
+	go run src/gateway/cmd/main.go src/gateway/cmd/wire_gen.go --config src/gateway/configs

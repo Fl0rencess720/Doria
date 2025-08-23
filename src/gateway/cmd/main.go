@@ -3,21 +3,20 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/conf"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/logging"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/profiling"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/registry"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/tracing"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/data"
-	api "github.com/Fl0rencess720/Bonfire-Lit/src/gateway/service"
 
 	ccb "github.com/cloudwego/eino-ext/callbacks/cozeloop"
 	"github.com/cloudwego/eino/callbacks"
 	"github.com/coze-dev/cozeloop-go"
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -36,6 +35,7 @@ func init() {
 
 func main() {
 	ctx := context.Background()
+
 	tp, err := tracing.SetTraceProvider(Name)
 	if err != nil {
 		zap.L().Panic("tracing init err: %s", zap.Error(err))
@@ -51,32 +51,31 @@ func main() {
 		zap.L().Panic("cozeloop client creation err: %s", zap.Error(err))
 	}
 	defer client.Close(ctx)
+
 	handler := ccb.NewLoopHandler(client)
 	callbacks.AppendGlobalHandlers(handler)
 
-	e, err := newSrv()
-	if err != nil {
-		zap.L().Panic("server startup err: %s", zap.Error(err))
-	}
-	e.Run(viper.GetString("server.http.addr"))
+	app := wireApp()
+
+	go func() {
+		if err := app.HttpServer.ListenAndServe(); err != nil {
+			zap.L().Error("Server ListenAndServe", zap.Error(err))
+			panic(err)
+		}
+	}()
+
+	closeServer(app.HttpServer)
 }
 
-func newSrv() (*gin.Engine, error) {
-	consulClient, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))
-	if err != nil {
-		return nil, err
+func closeServer(srv *http.Server) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGTERM)
+	<-quit
+	zap.L().Info("Shutdown Server ...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		zap.L().Fatal("Server forced to shutdown:", zap.Error(err))
 	}
-
-	imageRepo := data.NewImageRepo()
-	imageUsecase := controllers.NewImageUsecase(imageRepo)
-
-	serviceID, err := consulClient.RegisterService(Name)
-	if err != nil {
-		return nil, err
-	}
-	ID = serviceID
-	consulClient.SetTTLHealthCheck()
-
-	e := api.Init(imageUsecase)
-	return e, nil
+	zap.L().Info("Server exiting")
 }

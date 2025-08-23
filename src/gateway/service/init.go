@@ -1,6 +1,7 @@
 package service
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
@@ -8,17 +9,24 @@ import (
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/service/image"
 	ginZap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
+	"github.com/google/wire"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
-func Init(cu *controllers.ImageUsecase) *gin.Engine {
+var ProviderSet = wire.NewSet(NewHTTPServer)
+
+func NewHTTPServer(imageUseCase *controllers.ImageUsecase) *http.Server {
 	e := gin.New()
 	e.Use(gin.Logger(), gin.Recovery(), ginZap.Ginzap(zap.L(), time.RFC3339, false), ginZap.RecoveryWithZap(zap.L(), false))
 
 	app := e.Group("/api", middlewares.Cors())
 	{
-		image.InitApi(app, cu)
+		image.InitApi(app.Group("/image"), imageUseCase)
 	}
 
-	return e
+	return &http.Server{
+		Addr:    viper.GetString("server.http.addr"),
+		Handler: e,
+	}
 }
