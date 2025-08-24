@@ -12,3 +12,7 @@ func NewImageUseCase(imageRepo ImageRepo) *ImageUseCase {
 		imageRepo: imageRepo,
 	}
 }
+
+func (*ImageUseCase) GenerateTextOfImage(imageData []byte, style string) (string, error) {
+	return "", nil
+}

@@ -7,5 +7,12 @@ import (
 )
 
 func (s *ImageService) GenerateTextOnImage(ctx context.Context, req *imageapi.GenerateTextRequest) (resp *imageapi.GenerateTextResponse, err error) {
-	return nil, nil
+	text, err := s.imageUseCase.GenerateTextOfImage(req.ImageData, req.TextStyle)
+	if err != nil {
+		return nil, err
+	}
+
+	return &imageapi.GenerateTextResponse{
+		Text: text,
+	}, nil
 }
