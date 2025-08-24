@@ -4,6 +4,7 @@ import (
 	"mime/multipart"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
+	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
 	"github.com/gin-gonic/gin"
 )
 
@@ -11,7 +12,8 @@ type ImageRepo interface {
 }
 
 type ImageUsecase struct {
-	repo ImageRepo
+	repo        ImageRepo
+	imageClient imageapi.ImageServiceClient
 }
 
 type GenerateReq struct {
@@ -19,9 +21,10 @@ type GenerateReq struct {
 	TextStyle string                `form:"text_style" binding:"required"`
 }
 
-func NewImageUsecase(repo ImageRepo) *ImageUsecase {
+func NewImageUsecase(repo ImageRepo, imageClient imageapi.ImageServiceClient) *ImageUsecase {
 	return &ImageUsecase{
-		repo: repo,
+		repo:        repo,
+		imageClient: imageClient,
 	}
 }
 

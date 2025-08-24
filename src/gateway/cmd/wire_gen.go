@@ -17,7 +17,8 @@ import (
 
 func wireApp() *App {
 	imageRepo := data.NewImageRepo()
-	imageUsecase := controllers.NewImageUsecase(imageRepo)
+	imageServiceClient := data.NewImageClient()
+	imageUsecase := controllers.NewImageUsecase(imageRepo, imageServiceClient)
 	server := service.NewHTTPServer(imageUsecase)
 	app := NewApp(server)
 	return app
