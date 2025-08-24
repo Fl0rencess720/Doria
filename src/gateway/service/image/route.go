@@ -6,5 +6,5 @@ import (
 )
 
 func InitApi(group *gin.RouterGroup, iu *controllers.ImageUsecase) {
-	group.POST("/generating", iu.Generate)
+	group.POST("/text/generating", iu.GenerateText)
 }
