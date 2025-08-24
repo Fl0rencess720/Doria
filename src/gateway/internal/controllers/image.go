@@ -1,11 +1,13 @@
 package controllers
 
 import (
+	"io"
 	"mime/multipart"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
 	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type ImageRepo interface {
@@ -30,8 +32,37 @@ func NewImageUsecase(repo ImageRepo, imageClient imageapi.ImageServiceClient) *I
 
 func (u *ImageUsecase) GenerateText(c *gin.Context) {
 	var req GenerateReq
+
 	if err := c.ShouldBind(&req); err != nil {
+		zap.L().Warn("request bind error", zap.Error(err))
+		response.ErrorResponse(c, response.FormError, err)
+		return
+	}
+
+	file, err := req.Image.Open()
+	if err != nil {
+		zap.L().Warn("image open error", zap.Error(err))
 		response.ErrorResponse(c, response.ServerError, err)
 		return
 	}
+	defer file.Close()
+
+	imgBytes, err := io.ReadAll(file)
+	if err != nil {
+		zap.L().Warn("image read error", zap.Error(err))
+		response.ErrorResponse(c, response.ServerError, err)
+		return
+	}
+
+	resp, err := u.imageClient.GenerateTextOnImage(c, &imageapi.GenerateTextRequest{
+		ImageData: imgBytes,
+		TextStyle: req.TextStyle,
+	})
+	if err != nil {
+		zap.L().Error("generate text on image failed", zap.Error(err))
+		response.ErrorResponse(c, response.ServerError, err)
+		return
+	}
+
+	response.SuccessResponse(c, resp.Text)
 }

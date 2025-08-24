@@ -6,7 +6,9 @@ import (
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
 	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
+	_ "github.com/mbobakov/grpc-consul-resolver"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
@@ -32,7 +34,7 @@ func NewImageClient() imageapi.ImageServiceClient {
 		grpc.WithKeepaliveParams(kacp),
 	)
 	if err != nil {
-		panic(err)
+		zap.L().Panic("new grpc client failed", zap.Error(err))
 	}
 	client := imageapi.NewImageServiceClient(conn)
 	return client
