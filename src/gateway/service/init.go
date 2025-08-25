@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/middlewares"
+	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/service/chat"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/service/image"
 	ginZap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
@@ -16,13 +17,14 @@ import (
 
 var ProviderSet = wire.NewSet(NewHTTPServer)
 
-func NewHTTPServer(imageUseCase *controllers.ImageUsecase) *http.Server {
+func NewHTTPServer(imageUseCase *controllers.ImageUsecase, chatUseCase *controllers.ChatUseCase) *http.Server {
 	e := gin.New()
 	e.Use(gin.Logger(), gin.Recovery(), ginZap.Ginzap(zap.L(), time.RFC3339, false), ginZap.RecoveryWithZap(zap.L(), false))
 
 	app := e.Group("/api", middlewares.Cors())
 	{
 		image.InitApi(app.Group("/image"), imageUseCase)
+		chat.InitApi(app.Group("/chat"), chatUseCase)
 	}
 
 	return &http.Server{

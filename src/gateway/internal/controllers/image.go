@@ -40,14 +40,14 @@ func (u *ImageUsecase) GenerateText(c *gin.Context) {
 
 	if err := c.ShouldBind(&req); err != nil {
 		zap.L().Warn("request bind error", zap.Error(err))
-		response.ErrorResponse(c, response.FormError, err)
+		response.ErrorResponse(c, response.FormError)
 		return
 	}
 
 	file, err := req.Image.Open()
 	if err != nil {
 		zap.L().Warn("image open error", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError, err)
+		response.ErrorResponse(c, response.ServerError)
 		return
 	}
 	defer file.Close()
@@ -55,7 +55,7 @@ func (u *ImageUsecase) GenerateText(c *gin.Context) {
 	imgBytes, err := io.ReadAll(file)
 	if err != nil {
 		zap.L().Warn("image read error", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError, err)
+		response.ErrorResponse(c, response.ServerError)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (u *ImageUsecase) GenerateText(c *gin.Context) {
 	})
 	if err != nil {
 		zap.L().Error("generate text on image failed", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError, err)
+		response.ErrorResponse(c, response.ServerError)
 		return
 	}
 
