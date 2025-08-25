@@ -5,7 +5,7 @@ package image;
 option go_package = "rpc/image";
 
 service ImageService {
-  rpc GenerateTextOnImage(GenerateTextRequest) returns (GenerateTextResponse) {}
+  rpc GenerateTextOfImage(GenerateTextRequest) returns (GenerateTextResponse) {}
 }
 
 
@@ -16,7 +16,6 @@ message GenerateTextRequest {
 
 
 message GenerateTextResponse {
-  bool success = 1;         
-  string message = 2;        
-  string text = 3; 
+  string name = 1;      
+  string description = 2;
 }

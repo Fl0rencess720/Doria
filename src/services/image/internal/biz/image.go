@@ -19,14 +19,14 @@ func NewImageUseCase(imageRepo ImageRepo) *ImageUseCase {
 	}
 }
 
-func (*ImageUseCase) GenerateTextOfImage(ctx context.Context, imageData []byte, style string) (string, error) {
+func (*ImageUseCase) GenerateTextOfImage(ctx context.Context, imageData []byte, style string) (*agent.TextGeneratorResponse, error) {
 	textGenerator, err := agent.NewTextGenerator(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	text, err := textGenerator.Generator(ctx, imageData)
+	response, err := textGenerator.Generator(ctx, imageData)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return text, nil
+	return response, nil
 }

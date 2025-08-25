@@ -23,6 +23,11 @@ type GenerateReq struct {
 	TextStyle string                `form:"text_style" binding:"required"`
 }
 
+type GeneratorResp struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 func NewImageUsecase(repo ImageRepo, imageClient imageapi.ImageServiceClient) *ImageUsecase {
 	return &ImageUsecase{
 		repo:        repo,
@@ -53,7 +58,8 @@ func (u *ImageUsecase) GenerateText(c *gin.Context) {
 		response.ErrorResponse(c, response.ServerError, err)
 		return
 	}
-	resp, err := u.imageClient.GenerateTextOnImage(c, &imageapi.GenerateTextRequest{
+
+	resp, err := u.imageClient.GenerateTextOfImage(c, &imageapi.GenerateTextRequest{
 		ImageData: imgBytes,
 		TextStyle: req.TextStyle,
 	})
@@ -63,5 +69,8 @@ func (u *ImageUsecase) GenerateText(c *gin.Context) {
 		return
 	}
 
-	response.SuccessResponse(c, resp.Text)
+	response.SuccessResponse(c, GeneratorResp{
+		Name:        resp.Name,
+		Description: resp.Description,
+	})
 }

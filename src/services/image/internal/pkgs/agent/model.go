@@ -38,6 +38,15 @@ func newTextChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
 		ExtraFields: map[string]any{
 			"enable_thinking": false,
 		},
+		ResponseFormat: &openai.ChatCompletionResponseFormat{
+			Type: openai.ChatCompletionResponseFormatTypeJSONSchema,
+			JSONSchema: &openai.ChatCompletionResponseFormatJSONSchema{
+				Name:        "response_format",
+				Description: "Response with name and description",
+				Schema:      textGeneratorResponseSchema,
+				Strict:      true,
+			},
+		},
 	})
 	if err != nil {
 		return nil, err

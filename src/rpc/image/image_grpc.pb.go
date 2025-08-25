@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ImageService_GenerateTextOnImage_FullMethodName = "/image.ImageService/GenerateTextOnImage"
+	ImageService_GenerateTextOfImage_FullMethodName = "/image.ImageService/GenerateTextOfImage"
 )
 
 // ImageServiceClient is the client API for ImageService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ImageServiceClient interface {
-	GenerateTextOnImage(ctx context.Context, in *GenerateTextRequest, opts ...grpc.CallOption) (*GenerateTextResponse, error)
+	GenerateTextOfImage(ctx context.Context, in *GenerateTextRequest, opts ...grpc.CallOption) (*GenerateTextResponse, error)
 }
 
 type imageServiceClient struct {
@@ -37,10 +37,10 @@ func NewImageServiceClient(cc grpc.ClientConnInterface) ImageServiceClient {
 	return &imageServiceClient{cc}
 }
 
-func (c *imageServiceClient) GenerateTextOnImage(ctx context.Context, in *GenerateTextRequest, opts ...grpc.CallOption) (*GenerateTextResponse, error) {
+func (c *imageServiceClient) GenerateTextOfImage(ctx context.Context, in *GenerateTextRequest, opts ...grpc.CallOption) (*GenerateTextResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GenerateTextResponse)
-	err := c.cc.Invoke(ctx, ImageService_GenerateTextOnImage_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, ImageService_GenerateTextOfImage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (c *imageServiceClient) GenerateTextOnImage(ctx context.Context, in *Genera
 // All implementations must embed UnimplementedImageServiceServer
 // for forward compatibility.
 type ImageServiceServer interface {
-	GenerateTextOnImage(context.Context, *GenerateTextRequest) (*GenerateTextResponse, error)
+	GenerateTextOfImage(context.Context, *GenerateTextRequest) (*GenerateTextResponse, error)
 	mustEmbedUnimplementedImageServiceServer()
 }
 
@@ -62,8 +62,8 @@ type ImageServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedImageServiceServer struct{}
 
-func (UnimplementedImageServiceServer) GenerateTextOnImage(context.Context, *GenerateTextRequest) (*GenerateTextResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GenerateTextOnImage not implemented")
+func (UnimplementedImageServiceServer) GenerateTextOfImage(context.Context, *GenerateTextRequest) (*GenerateTextResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateTextOfImage not implemented")
 }
 func (UnimplementedImageServiceServer) mustEmbedUnimplementedImageServiceServer() {}
 func (UnimplementedImageServiceServer) testEmbeddedByValue()                      {}
@@ -86,20 +86,20 @@ func RegisterImageServiceServer(s grpc.ServiceRegistrar, srv ImageServiceServer)
 	s.RegisterService(&ImageService_ServiceDesc, srv)
 }
 
-func _ImageService_GenerateTextOnImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ImageService_GenerateTextOfImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GenerateTextRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ImageServiceServer).GenerateTextOnImage(ctx, in)
+		return srv.(ImageServiceServer).GenerateTextOfImage(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ImageService_GenerateTextOnImage_FullMethodName,
+		FullMethod: ImageService_GenerateTextOfImage_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ImageServiceServer).GenerateTextOnImage(ctx, req.(*GenerateTextRequest))
+		return srv.(ImageServiceServer).GenerateTextOfImage(ctx, req.(*GenerateTextRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -112,8 +112,8 @@ var ImageService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ImageServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GenerateTextOnImage",
-			Handler:    _ImageService_GenerateTextOnImage_Handler,
+			MethodName: "GenerateTextOfImage",
+			Handler:    _ImageService_GenerateTextOfImage_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
