@@ -2,10 +2,10 @@ package agent
 
 import (
 	"context"
-	"os"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
+	"github.com/spf13/viper"
 )
 
 func of[T any](t T) *T {
@@ -14,9 +14,9 @@ func of[T any](t T) *T {
 
 func newImageChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
 	cm, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		BaseURL:     os.Getenv("OPENAI_BASE_URL"),
-		APIKey:      os.Getenv("OPENAI_API_KEY"),
-		Model:       "Qwen/Qwen2.5-VL-72B-Instruct",
+		BaseURL:     viper.GetString("OPENAI_BASE_URL"),
+		APIKey:      viper.GetString("OPENAI_API_KEY"),
+		Model:       viper.GetString("agent.model.image_analyzer"),
 		MaxTokens:   of(8192),
 		Temperature: of(float32(0.7)),
 		TopP:        of(float32(0.7)),
@@ -29,9 +29,9 @@ func newImageChatModel(ctx context.Context) (model.ToolCallingChatModel, error) 
 
 func newTextChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
 	cm, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		BaseURL:     os.Getenv("OPENAI_BASE_URL"),
-		APIKey:      os.Getenv("OPENAI_API_KEY"),
-		Model:       "Qwen/Qwen3-235B-A22B",
+		BaseURL:     viper.GetString("OPENAI_BASE_URL"),
+		APIKey:      viper.GetString("OPENAI_API_KEY"),
+		Model:       viper.GetString("agent.model.text_generator"),
 		MaxTokens:   of(8192),
 		Temperature: of(float32(0.7)),
 		TopP:        of(float32(0.7)),
