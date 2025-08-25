@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/registry"
 	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
@@ -14,6 +15,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 var ProviderSet = wire.NewSet(NewImageService)
@@ -34,7 +36,21 @@ func NewImageService(serviceName string, imageUseCase *biz.ImageUseCase) *ImageS
 	if err != nil {
 		panic(err)
 	}
-	server := grpc.NewServer()
+
+	kaep := keepalive.EnforcementPolicy{
+		MinTime:             5 * time.Second,
+		PermitWithoutStream: false,
+	}
+
+	kasp := keepalive.ServerParameters{
+		Time:    15 * time.Second,
+		Timeout: 5 * time.Second,
+	}
+
+	server := grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(kaep),
+		grpc.KeepaliveParams(kasp),
+	)
 
 	imageapi.RegisterImageServiceServer(server, &ImageService{})
 	registry, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))

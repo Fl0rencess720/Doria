@@ -53,7 +53,6 @@ func (u *ImageUsecase) GenerateText(c *gin.Context) {
 		response.ErrorResponse(c, response.ServerError, err)
 		return
 	}
-
 	resp, err := u.imageClient.GenerateTextOnImage(c, &imageapi.GenerateTextRequest{
 		ImageData: imgBytes,
 		TextStyle: req.TextStyle,
