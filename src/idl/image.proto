@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package image;
+
+option go_package = "rpc/image";
+
+service ImageService {
+  rpc GenerateTextOfImage(GenerateTextRequest) returns (GenerateTextResponse) {}
+}
+
+
+message GenerateTextRequest {
+  bytes image_data = 1;      
+  string text_style = 2;     
+}
+
+
+message GenerateTextResponse {
+  string name = 1;      
+  string description = 2;
+}

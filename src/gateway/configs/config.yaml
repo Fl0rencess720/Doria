@@ -1,7 +1,9 @@
 server:
   http:
+    name: Bonfire-Lit.Gateway
     addr: :8000
     timeout: 900s
+    
 
 trace:
   otel_state: enable
@@ -16,3 +18,7 @@ project:
 chatmodel:
   model: gpt-4o-mini
   baseURL: https://api.openai.com/v1
+
+services:
+  image:
+    name: Bonfire-Lit.Service.Image

@@ -2,6 +2,7 @@ package conf
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/spf13/viper"
 )
@@ -43,7 +44,7 @@ func WithFileName(filename string) Option {
 }
 
 func Init(opts ...Option) {
-
+	fmt.Println(*configFile)
 	cur := apply(opts...)
 	viper.SetConfigType(cur.configFileType)
 	viper.AddConfigPath(*configFile)

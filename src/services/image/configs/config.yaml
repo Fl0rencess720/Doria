@@ -1,0 +1,21 @@
+server:
+  grpc:
+    name: Bonfire-Lit.Service.Image
+    port: 9000
+    timeout: 900s
+
+trace:
+  otel_state: enable
+  sample_ration: 1.0
+
+pyroscope:
+  state: enable
+
+project:
+  mode: dev
+
+agent:
+  model:
+    image_analyzer: "Qwen/Qwen2.5-VL-72B-Instruct"
+    text_generator: "Qwen/Qwen3-235B-A22B"
+  

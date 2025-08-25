@@ -6,6 +6,7 @@ import (
 
 const (
 	ServerError = iota
+	FormError
 	AuthError
 	TokenExpired
 	LoginError
@@ -14,6 +15,7 @@ const (
 )
 
 var HttpCode = map[uint]int{
+	FormError:   400,
 	ServerError: 500,
 }
 

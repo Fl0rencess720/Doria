@@ -12,7 +12,10 @@ import (
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/conf"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/logging"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/profiling"
+	"github.com/Fl0rencess720/Bonfire-Lit/src/common/registry"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/tracing"
+	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/configs"
+	"github.com/spf13/viper"
 
 	ccb "github.com/cloudwego/eino-ext/callbacks/cozeloop"
 	"github.com/cloudwego/eino/callbacks"
@@ -21,22 +24,21 @@ import (
 )
 
 var (
-	Name = "Bonfire-Lit.Gateway"
-	ID   = ""
+	ID string
 )
 
 func init() {
 	flag.Parse()
 	conf.Init()
 	logging.Init()
-	profiling.InitPyroscope(Name)
+	profiling.InitPyroscope(configs.GetServiceName())
 
 }
 
 func main() {
 	ctx := context.Background()
 
-	tp, err := tracing.SetTraceProvider(Name)
+	tp, err := tracing.SetTraceProvider(configs.GetServiceName())
 	if err != nil {
 		zap.L().Panic("tracing init err: %s", zap.Error(err))
 	}
@@ -55,6 +57,10 @@ func main() {
 	handler := ccb.NewLoopHandler(client)
 	callbacks.AppendGlobalHandlers(handler)
 
+	if err := registerService(configs.GetServiceName()); err != nil {
+		zap.L().Panic("register service err: %s", zap.Error(err))
+	}
+
 	app := wireApp()
 
 	go func() {
@@ -65,6 +71,21 @@ func main() {
 	}()
 
 	closeServer(app.HttpServer)
+}
+
+func registerService(serviceName string) error {
+	consulClient, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))
+	if err != nil {
+		return err
+	}
+	serviceID, err := consulClient.RegisterService(serviceName)
+	if err != nil {
+		return err
+	}
+	ID = serviceID
+
+	go consulClient.SetTTLHealthCheck()
+	return nil
 }
 
 func closeServer(srv *http.Server) {
