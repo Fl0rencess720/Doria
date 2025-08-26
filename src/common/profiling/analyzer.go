@@ -22,7 +22,7 @@ func InitPyroscope(appName string) {
 	_, err := pyroscope.Start(pyroscope.Config{
 		ApplicationName: appName,
 		ServerAddress:   viper.GetString("PYROSCOPE_ADDRESS"),
-		Logger:          zap.L().Sugar(),
+		Logger:          nil,
 		Tags:            map[string]string{"hostname": os.Getenv("HOSTNAME")},
 		ProfileTypes: []pyroscope.ProfileType{
 			pyroscope.ProfileCPU,

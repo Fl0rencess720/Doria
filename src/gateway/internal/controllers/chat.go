@@ -11,7 +11,8 @@ import (
 )
 
 type ChatStreamReq struct {
-	Message string `form:"message" binding:"required"`
+	ConversationID int32  `json:"conversation_id"`
+	Message        string `json:"message" binding:"required"`
 }
 
 type ChatRepo interface {
@@ -20,6 +21,11 @@ type ChatRepo interface {
 type ChatUseCase struct {
 	repo       ChatRepo
 	chatClient chatapi.ChatServiceClient
+}
+
+type SSEDataResp struct {
+	Text           string `json:"text"`
+	ConversationID int32  `json:"conversation_id"`
 }
 
 func NewChatUseCase(repo ChatRepo, chatClient chatapi.ChatServiceClient) *ChatUseCase {
@@ -31,13 +37,17 @@ func NewChatUseCase(repo ChatRepo, chatClient chatapi.ChatServiceClient) *ChatUs
 
 func (u *ChatUseCase) ChatStream(c *gin.Context) {
 	req := ChatStreamReq{}
-	if err := c.ShouldBindQuery(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		zap.L().Error("request bind error", zap.Error(err))
 		response.ErrorResponse(c, response.FormError)
 		return
 	}
 
-	stream, err := u.chatClient.ChatStream(c, &chatapi.ChatStreamRequest{})
+	stream, err := u.chatClient.ChatStream(c, &chatapi.ChatStreamRequest{
+		UserId:         1,
+		Prompt:         req.Message,
+		ConversationId: req.ConversationID,
+	})
 	if err != nil {
 		zap.L().Error("chat stream error", zap.Error(err))
 		response.ErrorResponse(c, response.ServerError)
@@ -55,14 +65,17 @@ func (u *ChatUseCase) ChatStream(c *gin.Context) {
 			zap.L().Error("failed to receive from gRPC stream", zap.Error(err))
 			sse.Encode(w, sse.Event{
 				Event: "error",
-				Data:  err.Error(),
+				Data:  response.ServerError,
 			})
 			return false
 		}
 
 		if err = sse.Encode(w, sse.Event{
 			Event: "message",
-			Data:  resp.GetChunk(),
+			Data: SSEDataResp{
+				Text:           resp.Chunk,
+				ConversationID: resp.ConversationId,
+			},
 		}); err != nil {
 			zap.L().Error("Error writing to SSE stream", zap.Error(err))
 			return false

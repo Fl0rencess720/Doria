@@ -6,5 +6,5 @@ import (
 )
 
 func InitApi(group *gin.RouterGroup, cu *controllers.ChatUseCase) {
-	group.POST("/send")
+	group.POST("/send", cu.ChatStream)
 }

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/registry"
-	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/image/internal/biz"
+	chatapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/chat"
+	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/biz"
 	"github.com/google/wire"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -18,20 +18,20 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-var ProviderSet = wire.NewSet(NewImageService)
+var ProviderSet = wire.NewSet(NewChatService)
 
-type ImageService struct {
-	imageapi.UnimplementedImageServiceServer
+type ChatService struct {
+	chatapi.UnimplementedChatServiceServer
 	serviceName string
 	serviceID   string
 	registry    *registry.ConsulClient
 	server      *grpc.Server
 	listener    net.Listener
 
-	imageUseCase *biz.ImageUseCase
+	chatUseCase *biz.ChatUseCase
 }
 
-func NewImageService(serviceName string, imageUseCase *biz.ImageUseCase) *ImageService {
+func NewChatService(serviceName string, chatUseCase *biz.ChatUseCase) *ChatService {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", viper.GetInt("server.grpc.port")))
 	if err != nil {
 		panic(err)
@@ -57,15 +57,15 @@ func NewImageService(serviceName string, imageUseCase *biz.ImageUseCase) *ImageS
 		panic(err)
 	}
 
-	s := &ImageService{serviceName: serviceName, registry: registry, server: server, listener: lis,
-		imageUseCase: imageUseCase}
+	s := &ChatService{serviceName: serviceName, registry: registry, server: server, listener: lis,
+		chatUseCase: chatUseCase}
 
-	imageapi.RegisterImageServiceServer(server, s)
+	chatapi.RegisterChatServiceServer(server, s)
 
 	return s
 }
 
-func (s *ImageService) Start() error {
+func (s *ChatService) Start() error {
 	serviceID, err := s.registry.RegisterService(s.serviceName)
 	if err != nil {
 		return fmt.Errorf("failed to register service: %w", err)
@@ -82,7 +82,7 @@ func (s *ImageService) Start() error {
 	return nil
 }
 
-func (s *ImageService) Stop() error {
+func (s *ChatService) Stop() error {
 	if s.serviceID != "" {
 		if err := s.registry.DeregisterService(s.serviceID); err != nil {
 			zap.L().Error("Failed to deregister service",
@@ -95,7 +95,7 @@ func (s *ImageService) Stop() error {
 	return nil
 }
 
-func (s *ImageService) WaitForShutdown() {
+func (s *ChatService) WaitForShutdown() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
