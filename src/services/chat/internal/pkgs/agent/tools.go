@@ -39,10 +39,10 @@ func tavilySearchTool(ctx context.Context) ([]tool.BaseTool, error) {
 
 func getTools(ctx context.Context) ([]tool.BaseTool, error) {
 	tools := []tool.BaseTool{}
-	tavilyTools, err := tavilySearchTool(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return append(tools, tavilyTools...), nil
+	// tavilyTools, err := tavilySearchTool(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return append(tools, tavilyTools...), nil
 	return tools, nil
 }

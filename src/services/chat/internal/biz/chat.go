@@ -11,7 +11,7 @@ import (
 type ChatRepo interface {
 	CreateConversation(ctx context.Context, conversation *models.Conversation) (uint, error)
 	GetChatHistory(ctx context.Context, conversationID uint) ([]*models.Message, error)
-	CreateMessage(ctx context.Context, message *models.Message) error
+	CreateMessages(ctx context.Context, message []*models.Message) error
 }
 
 type ChatStreamReq struct {
@@ -36,7 +36,6 @@ func (u *ChatUseCase) ChatStream(ctx context.Context, req *ChatStreamReq) (*sche
 		cm      *agent.ChatModel
 		err     error
 	)
-	u.chatRepo.CreateConversation(ctx, &models.Conversation{UserID: req.UserID})
 
 	if req.ConversationID == 0 {
 		req.ConversationID, err = u.chatRepo.CreateConversation(ctx, &models.Conversation{UserID: req.UserID})
@@ -67,6 +66,6 @@ func (u *ChatUseCase) GetChatHistory(ctx context.Context, conversationID uint) (
 	return u.chatRepo.GetChatHistory(ctx, conversationID)
 }
 
-func (u *ChatUseCase) CreateMessage(ctx context.Context, message *models.Message) error {
-	return u.chatRepo.CreateMessage(ctx, message)
+func (u *ChatUseCase) CreateMessages(ctx context.Context, messages []*models.Message) error {
+	return u.chatRepo.CreateMessages(ctx, messages)
 }

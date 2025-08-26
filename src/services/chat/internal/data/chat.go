@@ -51,7 +51,7 @@ func (r *chatRepo) GetChatHistory(ctx context.Context, conversationID uint) ([]*
 	return messages, nil
 }
 
-func (r *chatRepo) CreateMessage(ctx context.Context, message *models.Message) error {
+func (r *chatRepo) CreateMessages(ctx context.Context, message []*models.Message) error {
 	if err := r.pg.WithContext(ctx).Debug().Create(message).Error; err != nil {
 		return err
 	}

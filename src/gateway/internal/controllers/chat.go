@@ -11,8 +11,8 @@ import (
 )
 
 type ChatStreamReq struct {
-	ConversationID int32  `form:"conversation_id"`
-	Message        string `form:"message" binding:"required"`
+	ConversationID int32  `json:"conversation_id"`
+	Message        string `json:"message" binding:"required"`
 }
 
 type ChatRepo interface {
@@ -21,6 +21,11 @@ type ChatRepo interface {
 type ChatUseCase struct {
 	repo       ChatRepo
 	chatClient chatapi.ChatServiceClient
+}
+
+type SSEDataResp struct {
+	Text           string `json:"text"`
+	ConversationID int32  `json:"conversation_id"`
 }
 
 func NewChatUseCase(repo ChatRepo, chatClient chatapi.ChatServiceClient) *ChatUseCase {
@@ -41,7 +46,7 @@ func (u *ChatUseCase) ChatStream(c *gin.Context) {
 	stream, err := u.chatClient.ChatStream(c, &chatapi.ChatStreamRequest{
 		UserId:         1,
 		Prompt:         req.Message,
-		ConversationID: req.ConversationID,
+		ConversationId: req.ConversationID,
 	})
 	if err != nil {
 		zap.L().Error("chat stream error", zap.Error(err))
@@ -67,7 +72,10 @@ func (u *ChatUseCase) ChatStream(c *gin.Context) {
 
 		if err = sse.Encode(w, sse.Event{
 			Event: "message",
-			Data:  resp.GetChunk(),
+			Data: SSEDataResp{
+				Text:           resp.Chunk,
+				ConversationID: resp.ConversationId,
+			},
 		}); err != nil {
 			zap.L().Error("Error writing to SSE stream", zap.Error(err))
 			return false

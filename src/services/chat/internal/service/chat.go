@@ -16,10 +16,9 @@ func (s *ChatService) ChatStream(
 	resp grpc.ServerStreamingServer[chatapi.ChatStreamResponse],
 ) error {
 	ctx := resp.Context()
-
 	stream, id, err := s.chatUseCase.ChatStream(ctx, &biz.ChatStreamReq{
 		UserID:         uint(req.UserId),
-		ConversationID: uint(req.ConversationID),
+		ConversationID: uint(req.ConversationId),
 		Prompt:         req.Prompt,
 	})
 	if err != nil {
@@ -33,10 +32,17 @@ func (s *ChatService) ChatStream(
 	for {
 		chunk, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
-			err2 := s.chatUseCase.CreateMessage(ctx, &models.Message{
-				ConversationID: id,
-				Role:           role,
-				Content:        models.JSONContent{Text: fullResponse},
+			err2 := s.chatUseCase.CreateMessages(ctx, []*models.Message{
+				{
+					ConversationID: uint(id),
+					Role:           "user",
+					Content:        models.JSONContent{Text: req.Prompt},
+				},
+				{
+					ConversationID: uint(id),
+					Role:           role,
+					Content:        models.JSONContent{Text: fullResponse},
+				},
 			})
 			if err != nil {
 				zap.L().Error("chat stream error", zap.Error(err2))
@@ -50,7 +56,8 @@ func (s *ChatService) ChatStream(
 		}
 
 		if err := resp.Send(&chatapi.ChatStreamResponse{
-			Chunk: chunk.Content,
+			Chunk:          chunk.Content,
+			ConversationId: int32(id),
 		}); err != nil {
 			zap.L().Error("chat stream error", zap.Error(err))
 			return err
