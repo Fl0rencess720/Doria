@@ -9,7 +9,8 @@ service ChatService {
 }
 
 message ChatStreamRequest {
-    string prompt = 1; 
+    int32 user_id = 1;
+    string prompt = 2; 
 }
 
 message ChatStreamResponse {
