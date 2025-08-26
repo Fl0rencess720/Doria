@@ -12,6 +12,7 @@ type ChatRepo interface {
 	CreateConversation(ctx context.Context, conversation *models.Conversation) (uint, error)
 	GetChatHistory(ctx context.Context, conversationID uint) ([]*models.Message, error)
 	CreateMessages(ctx context.Context, message []*models.Message) error
+	GetUserConversations(ctx context.Context, userID uint) ([]*models.Conversation, error)
 }
 
 type ChatStreamReq struct {
@@ -38,7 +39,8 @@ func (u *ChatUseCase) ChatStream(ctx context.Context, req *ChatStreamReq) (*sche
 	)
 
 	if req.ConversationID == 0 {
-		req.ConversationID, err = u.chatRepo.CreateConversation(ctx, &models.Conversation{UserID: req.UserID})
+		title := "测试主题名"
+		req.ConversationID, err = u.chatRepo.CreateConversation(ctx, &models.Conversation{UserID: req.UserID, Title: title})
 		if err != nil {
 			return nil, 0, err
 		}
@@ -68,4 +70,8 @@ func (u *ChatUseCase) GetChatHistory(ctx context.Context, conversationID uint) (
 
 func (u *ChatUseCase) CreateMessages(ctx context.Context, messages []*models.Message) error {
 	return u.chatRepo.CreateMessages(ctx, messages)
+}
+
+func (u *ChatUseCase) GetUserConversations(ctx context.Context, userID uint) ([]*models.Conversation, error) {
+	return u.chatRepo.GetUserConversations(ctx, userID)
 }

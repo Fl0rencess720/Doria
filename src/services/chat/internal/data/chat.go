@@ -58,3 +58,15 @@ func (r *chatRepo) CreateMessages(ctx context.Context, message []*models.Message
 
 	return nil
 }
+
+func (r *chatRepo) GetUserConversations(ctx context.Context, userID uint) ([]*models.Conversation, error) {
+	var conversations []*models.Conversation
+	if err := r.pg.WithContext(ctx).Debug().
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Find(&conversations).Error; err != nil {
+		return []*models.Conversation{}, err
+	}
+
+	return conversations, nil
+}

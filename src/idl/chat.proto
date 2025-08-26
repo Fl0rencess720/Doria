@@ -6,6 +6,7 @@ option go_package = "rpc/chat";
 
 service ChatService {  
     rpc ChatStream(ChatStreamRequest) returns (stream ChatStreamResponse);
+    rpc GetUserConversations(GetUserConversationsRequest) returns (GetUserConversationsResponse);
 }
 
 message ChatStreamRequest {
@@ -17,4 +18,18 @@ message ChatStreamRequest {
 message ChatStreamResponse {
     string chunk = 1;
     int32 conversation_id = 2; 
+}
+
+message GetUserConversationsRequest {
+    int32 user_id = 1;
+}
+
+message GetUserConversationsResponse {
+    repeated Conversation conversations = 1;
+}
+
+message Conversation {
+    int32 id = 1;
+    string title = 2;
+    int64 create_time = 3;
 }

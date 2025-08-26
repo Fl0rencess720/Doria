@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"io"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
@@ -28,11 +29,39 @@ type SSEDataResp struct {
 	ConversationID int32  `json:"conversation_id"`
 }
 
+type ConversationResp struct {
+	ID         int32  `json:"id"`
+	Title      string `json:"title"`
+	CreateTime int64  `json:"create_time"`
+}
+
 func NewChatUseCase(repo ChatRepo, chatClient chatapi.ChatServiceClient) *ChatUseCase {
 	return &ChatUseCase{
 		repo:       repo,
 		chatClient: chatClient,
 	}
+}
+
+func (u *ChatUseCase) GetUserConversations(c *gin.Context) {
+	resp, err := u.chatClient.GetUserConversations(context.Background(), &chatapi.GetUserConversationsRequest{
+		UserId: 1,
+	})
+	if err != nil {
+		zap.L().Error("get user conversations error", zap.Error(err))
+		response.ErrorResponse(c, response.ServerError)
+		return
+	}
+
+	conversations := make([]ConversationResp, len(resp.Conversations))
+	for i, conv := range resp.Conversations {
+		conversations[i] = ConversationResp{
+			ID:         conv.Id,
+			Title:      conv.Title,
+			CreateTime: conv.CreateTime,
+		}
+	}
+
+	response.SuccessResponse(c, conversations)
 }
 
 func (u *ChatUseCase) ChatStream(c *gin.Context) {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"io"
 
@@ -70,4 +71,26 @@ func (s *ChatService) ChatStream(
 	}
 
 	return nil
+}
+
+func (s *ChatService) GetUserConversations(ctx context.Context, req *chatapi.GetUserConversationsRequest) (*chatapi.GetUserConversationsResponse, error) {
+	conversations, err := s.chatUseCase.GetUserConversations(ctx, uint(req.UserId))
+	if err != nil {
+		zap.L().Error("get user conversations error", zap.Error(err))
+		return nil, err
+	}
+
+	resp := &chatapi.GetUserConversationsResponse{
+		Conversations: make([]*chatapi.Conversation, len(conversations)),
+	}
+
+	for i, conv := range conversations {
+		resp.Conversations[i] = &chatapi.Conversation{
+			Id:         int32(conv.ID),
+			Title:      conv.Title,
+			CreateTime: conv.CreatedAt.Unix(),
+		}
+	}
+
+	return resp, nil
 }
