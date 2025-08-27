@@ -94,3 +94,31 @@ func (s *ChatService) GetUserConversations(ctx context.Context, req *chatapi.Get
 
 	return resp, nil
 }
+
+func (s *ChatService) GetConversationMessages(ctx context.Context, req *chatapi.GetConversationMessagesRequest) (*chatapi.GetConversationMessagesResponse, error) {
+	messages, err := s.chatUseCase.GetConversationMessages(ctx, uint(req.ConversationId))
+	if err != nil {
+		zap.L().Error("get conversation messages error", zap.Error(err))
+		return nil, err
+	}
+
+	resp := &chatapi.GetConversationMessagesResponse{
+		Messages: make([]*chatapi.Message, len(messages)),
+	}
+
+	for i, msg := range messages {
+		// Extract text content from JSONContent
+		content := ""
+		if msg.Content.Text != "" {
+			content = msg.Content.Text
+		}
+		
+		resp.Messages[i] = &chatapi.Message{
+			Role:       msg.Role,
+			Content:    content,
+			CreateTime: msg.CreatedAt.Unix(),
+		}
+	}
+
+	return resp, nil
+}

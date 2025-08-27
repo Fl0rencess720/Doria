@@ -13,6 +13,17 @@ type ChatRepo interface {
 	GetChatHistory(ctx context.Context, conversationID uint) ([]*models.Message, error)
 	CreateMessages(ctx context.Context, message []*models.Message) error
 	GetUserConversations(ctx context.Context, userID uint) ([]*models.Conversation, error)
+	GetConversationMessages(ctx context.Context, conversationID uint) ([]*models.Message, error)
+}
+
+type GetConversationMessagesRequest struct {
+	ConversationID uint `json:"conversation_id"`
+}
+
+type MessageResp struct {
+	Role       string `json:"role"`
+	Content    string `json:"content"`
+	CreateTime int64  `json:"create_time"`
 }
 
 type ChatStreamReq struct {
@@ -23,6 +34,10 @@ type ChatStreamReq struct {
 
 type ChatUseCase struct {
 	chatRepo ChatRepo
+}
+
+func (u *ChatUseCase) GetConversationMessages(ctx context.Context, conversationID uint) ([]*models.Message, error) {
+	return u.chatRepo.GetConversationMessages(ctx, conversationID)
 }
 
 func NewChatUseCase(chatRepo ChatRepo) *ChatUseCase {

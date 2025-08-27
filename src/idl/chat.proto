@@ -7,6 +7,7 @@ option go_package = "rpc/chat";
 service ChatService {  
     rpc ChatStream(ChatStreamRequest) returns (stream ChatStreamResponse);
     rpc GetUserConversations(GetUserConversationsRequest) returns (GetUserConversationsResponse);
+    rpc GetConversationMessages(GetConversationMessagesRequest) returns (GetConversationMessagesResponse);
 }
 
 message ChatStreamRequest {
@@ -32,4 +33,18 @@ message Conversation {
     int32 id = 1;
     string title = 2;
     int64 create_time = 3;
+}
+
+message Message {
+    string role = 1;
+    string content = 2;
+    int64 create_time = 3;
+}
+
+message GetConversationMessagesRequest {
+    int32 conversation_id = 1;
+}
+
+message GetConversationMessagesResponse {
+    repeated Message messages = 1;
 }

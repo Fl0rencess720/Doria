@@ -8,4 +8,5 @@ import (
 func InitApi(group *gin.RouterGroup, cu *controllers.ChatUseCase) {
 	group.POST("/send", cu.ChatStream)
 	group.GET("/conversations", cu.GetUserConversations)
+	group.GET("/messages", cu.GetConversationMessages)
 }

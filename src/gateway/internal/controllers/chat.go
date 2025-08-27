@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"io"
+	"strconv"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
 	chatapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/chat"
@@ -24,6 +25,42 @@ type ChatUseCase struct {
 	chatClient chatapi.ChatServiceClient
 }
 
+func (u *ChatUseCase) GetConversationMessages(c *gin.Context) {
+	conversationID := c.Query("conversation_id")
+	if conversationID == "" {
+		zap.L().Error("conversation_id is required")
+		response.ErrorResponse(c, response.FormError)
+		return
+	}
+
+	conversationIDInt, err := strconv.ParseInt(conversationID, 10, 32)
+	if err != nil {
+		zap.L().Error("conversation_id parse error", zap.Error(err))
+		response.ErrorResponse(c, response.FormError)
+		return
+	}
+
+	resp, err := u.chatClient.GetConversationMessages(context.Background(), &chatapi.GetConversationMessagesRequest{
+		ConversationId: int32(conversationIDInt),
+	})
+	if err != nil {
+		zap.L().Error("get conversation messages error", zap.Error(err))
+		response.ErrorResponse(c, response.ServerError)
+		return
+	}
+
+	messages := make([]MessageResp, len(resp.Messages))
+	for i, msg := range resp.Messages {
+		messages[i] = MessageResp{
+			Role:       msg.Role,
+			Content:    msg.Content,
+			CreateTime: msg.CreateTime,
+		}
+	}
+
+	response.SuccessResponse(c, messages)
+}
+
 type SSEDataResp struct {
 	Text           string `json:"text"`
 	ConversationID int32  `json:"conversation_id"`
@@ -32,6 +69,12 @@ type SSEDataResp struct {
 type ConversationResp struct {
 	ID         int32  `json:"id"`
 	Title      string `json:"title"`
+	CreateTime int64  `json:"create_time"`
+}
+
+type MessageResp struct {
+	Role       string `json:"role"`
+	Content    string `json:"content"`
 	CreateTime int64  `json:"create_time"`
 }
 
