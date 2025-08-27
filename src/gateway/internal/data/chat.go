@@ -28,7 +28,7 @@ func NewChatClient() chatapi.ChatServiceClient {
 		PermitWithoutStream: false,
 	}
 	conn, err := grpc.NewClient(
-		fmt.Sprintf("consul://%s/%s?wait=30s", viper.GetString("CONSUL_ADDR"), viper.GetString("services.image.name")),
+		fmt.Sprintf("consul://%s/%s?wait=30s", viper.GetString("CONSUL_ADDR"), viper.GetString("services.chat.name")),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithKeepaliveParams(kacp),
