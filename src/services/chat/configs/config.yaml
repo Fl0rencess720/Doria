@@ -1,6 +1,6 @@
 server:
   grpc:
-    name: Bonfire-Lit.Service.Image
+    name: Bonfire-Lit.Service.Chat
     port: 9000
     timeout: 900s
 

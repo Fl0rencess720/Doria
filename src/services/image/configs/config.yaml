@@ -1,7 +1,7 @@
 server:
   grpc:
     name: Bonfire-Lit.Service.Image
-    port: 9000
+    port: 9001
     timeout: 900s
 
 trace:
