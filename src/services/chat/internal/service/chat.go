@@ -107,12 +107,11 @@ func (s *ChatService) GetConversationMessages(ctx context.Context, req *chatapi.
 	}
 
 	for i, msg := range messages {
-		// Extract text content from JSONContent
 		content := ""
 		if msg.Content.Text != "" {
 			content = msg.Content.Text
 		}
-		
+
 		resp.Messages[i] = &chatapi.Message{
 			Role:       msg.Role,
 			Content:    content,

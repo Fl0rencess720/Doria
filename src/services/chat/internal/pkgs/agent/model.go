@@ -20,6 +20,9 @@ func newChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
 		MaxTokens:   of(8192),
 		Temperature: of(float32(0.7)),
 		TopP:        of(float32(0.7)),
+		ExtraFields: map[string]any{
+			"enable_thinking": false,
+		},
 	})
 	if err != nil {
 		return nil, err
