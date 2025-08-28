@@ -7,6 +7,7 @@ toolchain go1.24.6
 require (
 	github.com/cloudwego/eino v0.4.7
 	github.com/cloudwego/eino-ext/callbacks/cozeloop v0.1.2
+	github.com/cloudwego/eino-ext/callbacks/langfuse v0.0.0-20250828061307-a19adf5c9b50
 	github.com/cloudwego/eino-ext/components/embedding/ark v0.1.0
 	github.com/cloudwego/eino-ext/components/model/openai v0.0.0-20250822083409-f8d432eea60f
 	github.com/cloudwego/eino-ext/components/tool/mcp v0.0.3
@@ -46,11 +47,12 @@ require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
-	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cilium/ebpf v0.11.0 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
+	github.com/cloudwego/eino-ext/libs/acl/langfuse v0.0.0-20250409060521-ba8646352e4b // indirect
 	github.com/cloudwego/eino-ext/libs/acl/openai v0.0.0-20250821122458-ae35393076b3 // indirect
 	github.com/cockroachdb/errors v1.9.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20211118104740-dabe8e521a4f // indirect
