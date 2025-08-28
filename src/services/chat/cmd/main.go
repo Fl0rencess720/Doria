@@ -9,6 +9,7 @@ import (
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/profiling"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/tracing"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/configs"
+	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/pkgs/agent"
 
 	ccb "github.com/cloudwego/eino-ext/callbacks/cozeloop"
 	"github.com/cloudwego/eino/callbacks"
@@ -45,6 +46,8 @@ func main() {
 	defer client.Close(ctx)
 	handler := ccb.NewLoopHandler(client)
 	callbacks.AppendGlobalHandlers(handler)
+
+	agent.NewTools(ctx)
 
 	app := wireApp()
 	if err := app.Server.Start(); err != nil {

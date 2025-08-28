@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 
+	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/models"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/pkgs/agent"
 	"github.com/cloudwego/eino/schema"
@@ -36,10 +37,6 @@ type ChatUseCase struct {
 	chatRepo ChatRepo
 }
 
-func (u *ChatUseCase) GetConversationMessages(ctx context.Context, conversationID uint) ([]*models.Message, error) {
-	return u.chatRepo.GetConversationMessages(ctx, conversationID)
-}
-
 func NewChatUseCase(chatRepo ChatRepo) *ChatUseCase {
 	return &ChatUseCase{
 		chatRepo: chatRepo,
@@ -66,7 +63,12 @@ func (u *ChatUseCase) ChatStream(ctx context.Context, req *ChatStreamReq) (*sche
 		return nil, 0, err
 	}
 
-	cm, err = agent.NewChatModel(ctx)
+	hr, err := rag.NewHybridRetriever(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	cm, err = agent.NewChatModel(ctx, hr)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -89,4 +91,8 @@ func (u *ChatUseCase) CreateMessages(ctx context.Context, messages []*models.Mes
 
 func (u *ChatUseCase) GetUserConversations(ctx context.Context, userID uint) ([]*models.Conversation, error) {
 	return u.chatRepo.GetUserConversations(ctx, userID)
+}
+
+func (u *ChatUseCase) GetConversationMessages(ctx context.Context, conversationID uint) ([]*models.Message, error) {
+	return u.chatRepo.GetConversationMessages(ctx, conversationID)
 }

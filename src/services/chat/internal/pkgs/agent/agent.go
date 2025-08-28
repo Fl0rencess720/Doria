@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 
+	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/models"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
@@ -12,7 +13,7 @@ type ChatModel struct {
 	agent compose.Runnable[map[string]any, *schema.Message]
 }
 
-func NewChatModel(ctx context.Context) (*ChatModel, error) {
+func NewChatModel(ctx context.Context, hr *rag.HybridRetriever) (*ChatModel, error) {
 	cm, err := newChatModel(ctx)
 	if err != nil {
 		return nil, err

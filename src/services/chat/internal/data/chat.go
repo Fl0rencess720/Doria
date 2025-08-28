@@ -16,20 +16,10 @@ type chatRepo struct {
 	pg *gorm.DB
 }
 
-func (r *chatRepo) GetConversationMessages(ctx context.Context, conversationID uint) ([]*models.Message, error) {
-	var messages []*models.Message
-	if err := r.pg.WithContext(ctx).Debug().
-		Where("conversation_id = ?", conversationID).
-		Order("created_at ASC").
-		Find(&messages).Error; err != nil {
-		return []*models.Message{}, err
-	}
-
-	return messages, nil
-}
-
 func NewChatRepo(pg *gorm.DB) biz.ChatRepo {
-	return &chatRepo{pg: pg}
+	return &chatRepo{
+		pg: pg,
+	}
 }
 
 func NewPostgres() *gorm.DB {
@@ -81,4 +71,16 @@ func (r *chatRepo) GetUserConversations(ctx context.Context, userID uint) ([]*mo
 	}
 
 	return conversations, nil
+}
+
+func (r *chatRepo) GetConversationMessages(ctx context.Context, conversationID uint) ([]*models.Message, error) {
+	var messages []*models.Message
+	if err := r.pg.WithContext(ctx).Debug().
+		Where("conversation_id = ?", conversationID).
+		Order("created_at ASC").
+		Find(&messages).Error; err != nil {
+		return []*models.Message{}, err
+	}
+
+	return messages, nil
 }

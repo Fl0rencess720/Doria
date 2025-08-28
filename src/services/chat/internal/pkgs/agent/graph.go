@@ -7,7 +7,6 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/cloudwego/eino/schema"
-	"go.uber.org/zap"
 )
 
 const (
@@ -23,15 +22,12 @@ func buildChatGraph(ctx context.Context, cm model.ToolCallingChatModel) (*compos
 
 	tpl := newChatTemplate()
 
-	tools, err := getTools(ctx)
-	if err != nil {
-		zap.L().Warn("getTools failed", zap.Error(err))
-	}
+	chatTools := GetTools()
 
 	ragent, err := react.NewAgent(ctx, &react.AgentConfig{
 		ToolCallingModel: cm,
 		ToolsConfig: compose.ToolsNodeConfig{
-			Tools: tools,
+			Tools: chatTools,
 		},
 	})
 	if err != nil {
