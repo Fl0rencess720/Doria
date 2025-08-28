@@ -45,7 +45,7 @@ func (s *ChatService) ChatStream(
 					Content:        models.JSONContent{Text: fullResponse},
 				},
 			})
-			if err != nil {
+			if err2 != nil {
 				zap.L().Error("chat stream error", zap.Error(err2))
 				break
 			}
