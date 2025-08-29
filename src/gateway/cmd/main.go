@@ -17,9 +17,8 @@ import (
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/configs"
 	"github.com/spf13/viper"
 
-	ccb "github.com/cloudwego/eino-ext/callbacks/cozeloop"
+	"github.com/cloudwego/eino-ext/callbacks/langfuse"
 	"github.com/cloudwego/eino/callbacks"
-	"github.com/coze-dev/cozeloop-go"
 	"go.uber.org/zap"
 )
 
@@ -36,8 +35,6 @@ func init() {
 }
 
 func main() {
-	ctx := context.Background()
-
 	tp, err := tracing.SetTraceProvider(configs.GetServiceName())
 	if err != nil {
 		zap.L().Panic("tracing init err: %s", zap.Error(err))
@@ -48,14 +45,14 @@ func main() {
 		}
 	}()
 
-	client, err := cozeloop.NewClient()
-	if err != nil {
-		zap.L().Panic("cozeloop client creation err: %s", zap.Error(err))
-	}
-	defer client.Close(ctx)
+	cbh, flusher := langfuse.NewLangfuseHandler(&langfuse.Config{
+		Host:      "https://cloud.langfuse.com",
+		PublicKey: viper.GetString("LANGFUSE_PUBLIC_KEY"),
+		SecretKey: viper.GetString("LANGFUSE_SECRET_KEY"),
+	})
+	defer flusher()
 
-	handler := ccb.NewLoopHandler(client)
-	callbacks.AppendGlobalHandlers(handler)
+	callbacks.AppendGlobalHandlers(cbh)
 
 	if err := registerService(configs.GetServiceName()); err != nil {
 		zap.L().Panic("register service err: %s", zap.Error(err))

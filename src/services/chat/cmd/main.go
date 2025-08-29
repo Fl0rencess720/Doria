@@ -9,10 +9,10 @@ import (
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/profiling"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/tracing"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/configs"
-
-	ccb "github.com/cloudwego/eino-ext/callbacks/cozeloop"
+	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/pkgs/agent"
+	"github.com/cloudwego/eino-ext/callbacks/langfuse"
 	"github.com/cloudwego/eino/callbacks"
-	"github.com/coze-dev/cozeloop-go"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -38,13 +38,16 @@ func main() {
 		}
 	}()
 
-	client, err := cozeloop.NewClient()
-	if err != nil {
-		zap.L().Panic("cozeloop init err: %s", zap.Error(err))
-	}
-	defer client.Close(ctx)
-	handler := ccb.NewLoopHandler(client)
-	callbacks.AppendGlobalHandlers(handler)
+	cbh, flusher := langfuse.NewLangfuseHandler(&langfuse.Config{
+		Host:      "https://cloud.langfuse.com",
+		PublicKey: viper.GetString("LANGFUSE_PUBLIC_KEY"),
+		SecretKey: viper.GetString("LANGFUSE_SECRET_KEY"),
+	})
+	defer flusher()
+
+	callbacks.AppendGlobalHandlers(cbh)
+
+	agent.NewTools(ctx)
 
 	app := wireApp()
 	if err := app.Server.Start(); err != nil {

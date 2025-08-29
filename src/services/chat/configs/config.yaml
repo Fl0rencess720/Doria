@@ -24,4 +24,13 @@ tavily:
 agent:
   model:
     chat: "Qwen/Qwen3-235B-A22B"
-  
+
+rag:
+  milvus:
+    username: root
+  retriever:
+    topK: 5
+    collectionName: newC
+  embedding:
+    model: doubao-embedding-large-text-250515
+    
