@@ -19,13 +19,13 @@ const (
 )
 
 type state struct {
-	prompt  string
 	history []*schema.Message
 }
 
 type RetrievalOutput struct {
 	Retrieval bool   `json:"retrieval"`
 	Docs      string `json:"docs"`
+	Prompt    string `json:"prompt"`
 }
 
 func buildChatGraph(ctx context.Context, cm model.ToolCallingChatModel, rcm model.ToolCallingChatModel) (*compose.Graph[map[string]any, *schema.Message], error) {
@@ -34,7 +34,7 @@ func buildChatGraph(ctx context.Context, cm model.ToolCallingChatModel, rcm mode
 	tpl := newChatTemplate()
 	rtpl := newRetrievalTemplate()
 
-	chatTools := GetTools()
+	chatTools := GetChatTools()
 	ragTools := GetRAGTools()
 
 	retrievalRagent, err := react.NewAgent(ctx, &react.AgentConfig{
@@ -87,11 +87,6 @@ func retrievalPreHandler(ctx context.Context, input map[string]any, state *state
 			state.history = history
 		}
 	}
-	if promptValue, exists := input["prompt"]; exists {
-		if prompt, ok := promptValue.(string); ok {
-			state.prompt = prompt
-		}
-	}
 	return input, nil
 }
 
@@ -107,7 +102,7 @@ func dataConvertLambda(ctx context.Context, input *schema.Message) (map[string]a
 	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
 		result = map[string]any{
 			"history": state.history,
-			"prompt":  state.prompt,
+			"prompt":  retrievalOutput.Prompt,
 			"docs":    retrievalOutput.Docs,
 		}
 		return nil
