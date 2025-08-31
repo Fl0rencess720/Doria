@@ -48,6 +48,7 @@ func buildChatGraph(ctx context.Context, cm model.ToolCallingChatModel, rcm mode
 	}
 
 	ragent, err := react.NewAgent(ctx, &react.AgentConfig{
+		ToolCallingModel: cm,
 		ToolsConfig: compose.ToolsNodeConfig{
 			Tools: chatTools,
 		},

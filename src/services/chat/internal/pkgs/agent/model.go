@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
-	openai2 "github.com/cloudwego/eino-ext/libs/acl/openai"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/spf13/viper"
 )
@@ -41,9 +40,6 @@ func newRetrievalModel(ctx context.Context) (model.ToolCallingChatModel, error) 
 		TopP:        of(float32(0.7)),
 		ExtraFields: map[string]any{
 			"enable_thinking": false,
-		},
-		ResponseFormat: &openai2.ChatCompletionResponseFormat{
-			Type: openai2.ChatCompletionResponseFormatTypeJSONObject,
 		},
 	})
 	if err != nil {
