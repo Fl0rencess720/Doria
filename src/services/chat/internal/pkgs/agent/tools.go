@@ -16,6 +16,7 @@ import (
 )
 
 var tools []tool.BaseTool
+var ragTools []tool.BaseTool
 
 type RAGToolInput struct {
 	Query string `json:"query" jsonschema:"description=查询文本,required"`
@@ -113,8 +114,13 @@ func NewTools(ctx context.Context) {
 	}
 
 	tools = append(tools, ragTool)
+	ragTools = append(ragTools, ragTool)
 }
 
 func GetTools() []tool.BaseTool {
 	return tools
+}
+
+func GetRAGTools() []tool.BaseTool {
+	return ragTools
 }

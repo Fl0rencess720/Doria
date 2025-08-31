@@ -18,8 +18,12 @@ func NewChatModel(ctx context.Context, hr *rag.HybridRetriever) (*ChatModel, err
 	if err != nil {
 		return nil, err
 	}
+	rcm, err := newRetrievalModel(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	g, err := buildChatGraph(ctx, cm)
+	g, err := buildChatGraph(ctx, cm, rcm)
 	if err != nil {
 		return nil, err
 	}
