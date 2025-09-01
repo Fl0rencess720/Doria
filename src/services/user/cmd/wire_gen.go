@@ -18,8 +18,9 @@ import (
 func wireApp() *App {
 	string2 := configs.GetServiceName()
 	db := data.NewPostgres()
-	userRepository := data.NewUserRepo(db)
-	userUseCase := biz.NewUserUseCase(userRepository)
+	client := data.NewRedis()
+	userRepo := data.NewUserRepo(db, client)
+	userUseCase := biz.NewUserUseCase(userRepo)
 	userService := service.NewUserService(string2, userUseCase)
 	app := NewApp(userService)
 	return app

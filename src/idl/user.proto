@@ -17,6 +17,7 @@ message RegisterRequest {
 
 message RegisterResponse {
     int32 user_id = 1;
+    int32 code = 2;
 }
 
 message LoginRequest {
@@ -26,4 +27,5 @@ message LoginRequest {
 
 message LoginResponse {
     int32 user_id = 1;
+    int32 code = 2;
 }

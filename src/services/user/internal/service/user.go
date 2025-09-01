@@ -4,12 +4,27 @@ import (
 	"context"
 
 	userapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/user"
+	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/biz"
 )
 
 func (s *UserService) Register(ctx context.Context, req *userapi.RegisterRequest) (*userapi.RegisterResponse, error) {
-	return s.userUseCase.Register(ctx, req)
+	userID, code, err := s.userUseCase.Register(ctx, &biz.UserRegisterReq{})
+	if err != nil {
+		return nil, err
+	}
+	return &userapi.RegisterResponse{
+		UserId: int32(userID),
+		Code:   int32(code),
+	}, nil
 }
 
 func (s *UserService) Login(ctx context.Context, req *userapi.LoginRequest) (*userapi.LoginResponse, error) {
-	return s.userUseCase.Login(ctx, req)
+	userID, code, err := s.userUseCase.Login(ctx, &biz.UserLoginReq{})
+	if err != nil {
+		return nil, err
+	}
+	return &userapi.LoginResponse{
+		UserId: int32(userID),
+		Code:   int32(code),
+	}, nil
 }

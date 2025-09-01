@@ -2,4 +2,4 @@ package data
 
 import "github.com/google/wire"
 
-var ProviderSet = wire.NewSet(NewUserRepo, NewPostgres)
+var ProviderSet = wire.NewSet(NewUserRepo, NewPostgres, NewRedis)

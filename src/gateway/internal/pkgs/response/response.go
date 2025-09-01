@@ -9,9 +9,13 @@ const (
 	FormError
 	AuthError
 	TokenExpired
-	LoginError
 	RefreshTokenError
-	RegisterError
+
+	UserExistError
+	CodeError
+
+	UserNotExistError
+	PasswordError
 )
 
 var HttpCode = map[uint]int{
@@ -25,9 +29,13 @@ var Message = map[uint]string{
 	FormError:         "参数错误",
 	AuthError:         "认证失败",
 	TokenExpired:      "Token已过期",
-	LoginError:        "登录失败",
 	RefreshTokenError: "刷新Token失败",
-	RegisterError:     "注册失败",
+
+	UserExistError: "用户已存在",
+	CodeError:      "验证码错误",
+
+	UserNotExistError: "用户不存在",
+	PasswordError:     "密码错误",
 }
 
 func SuccessResponse(c *gin.Context, data any) {
