@@ -24,3 +24,5 @@ services:
     name: Bonfire-Lit.Service.Image
   chat:
     name: Bonfire-Lit.Service.Chat
+  user:
+    name: Bonfire-Lit.Service.User
