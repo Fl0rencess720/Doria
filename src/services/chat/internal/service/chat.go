@@ -121,3 +121,17 @@ func (s *ChatService) GetConversationMessages(ctx context.Context, req *chatapi.
 
 	return resp, nil
 }
+
+func (s *ChatService) DeleteConversation(ctx context.Context, req *chatapi.DeleteConversationRequest) (*chatapi.DeleteConversationResponse, error) {
+	err := s.chatUseCase.DeleteConversation(ctx, uint(req.ConversationId))
+	if err != nil {
+		zap.L().Error("delete conversation error", zap.Error(err))
+		return &chatapi.DeleteConversationResponse{
+			Success: false,
+		}, err
+	}
+
+	return &chatapi.DeleteConversationResponse{
+		Success: true,
+	}, nil
+}

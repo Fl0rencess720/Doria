@@ -157,3 +157,31 @@ func (u *ChatUseCase) ChatStream(c *gin.Context) {
 	})
 
 }
+
+func (u *ChatUseCase) DeleteConversation(c *gin.Context) {
+	conversationID := c.Query("conversation_id")
+	if conversationID == "" {
+		zap.L().Error("conversation_id is required")
+		response.ErrorResponse(c, response.FormError)
+		return
+	}
+
+	conversationIDInt, err := strconv.ParseInt(conversationID, 10, 32)
+	if err != nil {
+		zap.L().Error("conversation_id parse error", zap.Error(err))
+		response.ErrorResponse(c, response.FormError)
+		return
+	}
+
+	resp, err := u.chatClient.DeleteConversation(context.Background(), &chatapi.DeleteConversationRequest{
+		ConversationId: int32(conversationIDInt),
+	})
+	if err != nil {
+		zap.L().Error("delete conversation error", zap.Error(err))
+		response.ErrorResponse(c, response.ServerError)
+		return
+	}
+
+	response.SuccessResponse(c, resp)
+
+}
