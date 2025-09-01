@@ -22,7 +22,10 @@ func wireApp() *App {
 	chatRepo := data.NewChatRepo()
 	chatServiceClient := data.NewChatClient()
 	chatUseCase := controllers.NewChatUseCase(chatRepo, chatServiceClient)
-	server := service.NewHTTPServer(imageUsecase, chatUseCase)
+	userRepo := data.NewUserRepo()
+	userServiceClient := data.NewUserClient()
+	userUsecase := controllers.NewUserUsecase(userRepo, userServiceClient)
+	server := service.NewHTTPServer(imageUsecase, chatUseCase, userUsecase)
 	app := NewApp(server)
 	return app
 }
