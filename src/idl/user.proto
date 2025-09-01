@@ -17,8 +17,6 @@ message RegisterRequest {
 
 message RegisterResponse {
     int32 user_id = 1;
-    string access_token = 2;
-    string refresh_token = 3;
 }
 
 message LoginRequest {
@@ -28,6 +26,4 @@ message LoginRequest {
 
 message LoginResponse {
     int32 user_id = 1;
-    string access_token = 2;
-    string refresh_token = 3;
 }

@@ -1,0 +1,15 @@
+server:
+  grpc:
+    name: Bonfire-Lit.Service.User
+    port: 9002
+    timeout: 900s
+
+trace:
+  otel_state: enable
+  sample_ration: 1.0
+
+pyroscope:
+  state: enable
+
+project:
+  mode: dev
