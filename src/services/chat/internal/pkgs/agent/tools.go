@@ -15,7 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-var tools []tool.BaseTool
+var chatTools []tool.BaseTool
+var ragTools []tool.BaseTool
 
 type RAGToolInput struct {
 	Query string `json:"query" jsonschema:"description=查询文本,required"`
@@ -112,9 +113,14 @@ func NewTools(ctx context.Context) {
 		ragTool = nil
 	}
 
-	tools = append(tools, ragTool)
+	chatTools = append(chatTools, ragTool)
+	ragTools = append(ragTools, ragTool)
 }
 
-func GetTools() []tool.BaseTool {
-	return tools
+func GetChatTools() []tool.BaseTool {
+	return chatTools
+}
+
+func GetRAGTools() []tool.BaseTool {
+	return ragTools
 }
