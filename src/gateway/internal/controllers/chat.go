@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/middlewares"
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
 	chatapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/chat"
 	"github.com/gin-contrib/sse"
@@ -86,8 +87,10 @@ func NewChatUseCase(repo ChatRepo, chatClient chatapi.ChatServiceClient) *ChatUs
 }
 
 func (u *ChatUseCase) GetUserConversations(c *gin.Context) {
+	userID := c.GetInt(string(middlewares.UserIDKey))
+
 	resp, err := u.chatClient.GetUserConversations(context.Background(), &chatapi.GetUserConversationsRequest{
-		UserId: 1,
+		UserId: int32(userID),
 	})
 	if err != nil {
 		zap.L().Error("get user conversations error", zap.Error(err))
@@ -108,6 +111,8 @@ func (u *ChatUseCase) GetUserConversations(c *gin.Context) {
 }
 
 func (u *ChatUseCase) ChatStream(c *gin.Context) {
+	userID := c.GetInt(string(middlewares.UserIDKey))
+
 	req := ChatStreamReq{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		zap.L().Error("request bind error", zap.Error(err))
@@ -116,7 +121,7 @@ func (u *ChatUseCase) ChatStream(c *gin.Context) {
 	}
 
 	stream, err := u.chatClient.ChatStream(c, &chatapi.ChatStreamRequest{
-		UserId:         1,
+		UserId:         int32(userID),
 		Prompt:         req.Message,
 		ConversationId: req.ConversationID,
 	})
@@ -155,5 +160,33 @@ func (u *ChatUseCase) ChatStream(c *gin.Context) {
 
 		return true
 	})
+
+}
+
+func (u *ChatUseCase) DeleteConversation(c *gin.Context) {
+	conversationID := c.Query("conversation_id")
+	if conversationID == "" {
+		zap.L().Error("conversation_id is required")
+		response.ErrorResponse(c, response.FormError)
+		return
+	}
+
+	conversationIDInt, err := strconv.ParseInt(conversationID, 10, 32)
+	if err != nil {
+		zap.L().Error("conversation_id parse error", zap.Error(err))
+		response.ErrorResponse(c, response.FormError)
+		return
+	}
+
+	resp, err := u.chatClient.DeleteConversation(context.Background(), &chatapi.DeleteConversationRequest{
+		ConversationId: int32(conversationIDInt),
+	})
+	if err != nil {
+		zap.L().Error("delete conversation error", zap.Error(err))
+		response.ErrorResponse(c, response.ServerError)
+		return
+	}
+
+	response.SuccessResponse(c, resp)
 
 }

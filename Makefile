@@ -17,11 +17,13 @@ help:
 	@echo "  gateway   - Run gateway service"
 	@echo "  image     - Run image service"
 	@echo "  chat     - Run chat service"
+	@echo "  user     - Run user service"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make run gateway"
 	@echo "  make run image"
 	@echo "  make run chat"
+	@echo "  make run user"
 
 .PHONY: gateway image
 gateway:
@@ -32,3 +34,5 @@ image:
 
 chat:
 	@go run src/services/chat/cmd/main.go src/services/chat/cmd/wire_gen.go --config src/services/chat/configs
+user:
+	@go run src/services/user/cmd/main.go src/services/user/cmd/wire_gen.go --config src/services/user/configs

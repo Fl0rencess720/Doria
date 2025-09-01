@@ -6,17 +6,16 @@ toolchain go1.24.6
 
 require (
 	github.com/cloudwego/eino v0.4.7
-	github.com/cloudwego/eino-ext/callbacks/cozeloop v0.1.2
 	github.com/cloudwego/eino-ext/callbacks/langfuse v0.0.0-20250828061307-a19adf5c9b50
 	github.com/cloudwego/eino-ext/components/embedding/ark v0.1.0
 	github.com/cloudwego/eino-ext/components/model/openai v0.0.0-20250822083409-f8d432eea60f
 	github.com/cloudwego/eino-ext/components/tool/mcp v0.0.3
-	github.com/coze-dev/cozeloop-go v0.1.8
 	github.com/getkin/kin-openapi v0.118.0
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/sse v1.1.0
 	github.com/gin-contrib/zap v1.1.5
 	github.com/gin-gonic/gin v1.10.1
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/wire v0.6.0
 	github.com/grafana/pyroscope-go v1.2.4
 	github.com/hashicorp/consul/api v1.32.1
@@ -24,6 +23,7 @@ require (
 	github.com/mbobakov/grpc-consul-resolver v1.5.3
 	github.com/milvus-io/milvus/client/v2 v2.6.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/redis/go-redis/v9 v9.12.1
 	github.com/spf13/viper v1.20.1
 	go.opentelemetry.io/otel v1.37.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.37.0
@@ -43,7 +43,6 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
@@ -60,8 +59,8 @@ require (
 	github.com/containerd/cgroups/v3 v3.0.3 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
-	github.com/coze-dev/cozeloop-go/spec v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/eino-contrib/jsonschema v1.0.0 // indirect
@@ -84,7 +83,6 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -169,8 +167,6 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
-	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.23 // indirect
 	github.com/volcengine/volcengine-go-sdk v1.0.181 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect

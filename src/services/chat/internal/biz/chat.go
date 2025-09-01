@@ -15,6 +15,7 @@ type ChatRepo interface {
 	CreateMessages(ctx context.Context, message []*models.Message) error
 	GetUserConversations(ctx context.Context, userID uint) ([]*models.Conversation, error)
 	GetConversationMessages(ctx context.Context, conversationID uint) ([]*models.Message, error)
+	DeleteConversation(ctx context.Context, conversationID uint) error
 }
 
 type GetConversationMessagesRequest struct {
@@ -95,4 +96,8 @@ func (u *ChatUseCase) GetUserConversations(ctx context.Context, userID uint) ([]
 
 func (u *ChatUseCase) GetConversationMessages(ctx context.Context, conversationID uint) ([]*models.Message, error) {
 	return u.chatRepo.GetConversationMessages(ctx, conversationID)
+}
+
+func (u *ChatUseCase) DeleteConversation(ctx context.Context, conversationID uint) error {
+	return u.chatRepo.DeleteConversation(ctx, conversationID)
 }

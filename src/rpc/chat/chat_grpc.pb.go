@@ -22,6 +22,7 @@ const (
 	ChatService_ChatStream_FullMethodName              = "/chat.ChatService/ChatStream"
 	ChatService_GetUserConversations_FullMethodName    = "/chat.ChatService/GetUserConversations"
 	ChatService_GetConversationMessages_FullMethodName = "/chat.ChatService/GetConversationMessages"
+	ChatService_DeleteConversation_FullMethodName      = "/chat.ChatService/DeleteConversation"
 )
 
 // ChatServiceClient is the client API for ChatService service.
@@ -31,6 +32,7 @@ type ChatServiceClient interface {
 	ChatStream(ctx context.Context, in *ChatStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ChatStreamResponse], error)
 	GetUserConversations(ctx context.Context, in *GetUserConversationsRequest, opts ...grpc.CallOption) (*GetUserConversationsResponse, error)
 	GetConversationMessages(ctx context.Context, in *GetConversationMessagesRequest, opts ...grpc.CallOption) (*GetConversationMessagesResponse, error)
+	DeleteConversation(ctx context.Context, in *DeleteConversationRequest, opts ...grpc.CallOption) (*DeleteConversationResponse, error)
 }
 
 type chatServiceClient struct {
@@ -80,6 +82,16 @@ func (c *chatServiceClient) GetConversationMessages(ctx context.Context, in *Get
 	return out, nil
 }
 
+func (c *chatServiceClient) DeleteConversation(ctx context.Context, in *DeleteConversationRequest, opts ...grpc.CallOption) (*DeleteConversationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteConversationResponse)
+	err := c.cc.Invoke(ctx, ChatService_DeleteConversation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ChatServiceServer is the server API for ChatService service.
 // All implementations must embed UnimplementedChatServiceServer
 // for forward compatibility.
@@ -87,6 +99,7 @@ type ChatServiceServer interface {
 	ChatStream(*ChatStreamRequest, grpc.ServerStreamingServer[ChatStreamResponse]) error
 	GetUserConversations(context.Context, *GetUserConversationsRequest) (*GetUserConversationsResponse, error)
 	GetConversationMessages(context.Context, *GetConversationMessagesRequest) (*GetConversationMessagesResponse, error)
+	DeleteConversation(context.Context, *DeleteConversationRequest) (*DeleteConversationResponse, error)
 	mustEmbedUnimplementedChatServiceServer()
 }
 
@@ -105,6 +118,9 @@ func (UnimplementedChatServiceServer) GetUserConversations(context.Context, *Get
 }
 func (UnimplementedChatServiceServer) GetConversationMessages(context.Context, *GetConversationMessagesRequest) (*GetConversationMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetConversationMessages not implemented")
+}
+func (UnimplementedChatServiceServer) DeleteConversation(context.Context, *DeleteConversationRequest) (*DeleteConversationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteConversation not implemented")
 }
 func (UnimplementedChatServiceServer) mustEmbedUnimplementedChatServiceServer() {}
 func (UnimplementedChatServiceServer) testEmbeddedByValue()                     {}
@@ -174,6 +190,24 @@ func _ChatService_GetConversationMessages_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChatService_DeleteConversation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteConversationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatServiceServer).DeleteConversation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatService_DeleteConversation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatServiceServer).DeleteConversation(ctx, req.(*DeleteConversationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ChatService_ServiceDesc is the grpc.ServiceDesc for ChatService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -188,6 +222,10 @@ var ChatService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetConversationMessages",
 			Handler:    _ChatService_GetConversationMessages_Handler,
+		},
+		{
+			MethodName: "DeleteConversation",
+			Handler:    _ChatService_DeleteConversation_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

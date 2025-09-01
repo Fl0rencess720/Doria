@@ -84,3 +84,21 @@ func (r *chatRepo) GetConversationMessages(ctx context.Context, conversationID u
 
 	return messages, nil
 }
+
+func (r *chatRepo) DeleteConversation(ctx context.Context, conversationID uint) error {
+	return r.pg.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Debug().
+			Where("conversation_id = ?", conversationID).
+			Delete(&models.Message{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Debug().
+			Where("id = ?", conversationID).
+			Delete(&models.Conversation{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}

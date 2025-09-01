@@ -1,0 +1,27 @@
+server:
+  grpc:
+    name: Bonfire-Lit.Service.User
+    port: 9002
+    timeout: 900s
+
+database:
+  postgres:
+    dsn: host=%s user=admin password=%s dbname=bonfire_lit port=%s sslmode=disable TimeZone=Asia/Shanghai
+  redis:
+    db: 0
+    dial_timeout: 10s
+    write_timeout: 10s
+    read_timeout: 10s
+
+
+
+trace:
+  otel_state: enable
+  sample_ration: 1.0
+
+pyroscope:
+  state: enable
+
+project:
+  mode: dev
+
