@@ -82,7 +82,7 @@ func (u *UserUsecase) Register(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := jwtc.GenToken(resp.UserId)
+	accessToken, refreshToken, err := jwtc.GenToken(int(resp.UserId))
 	if err != nil {
 		zap.L().Error("generate token error", zap.Error(err))
 		response.ErrorResponse(c, response.ServerError)
@@ -114,7 +114,7 @@ func (u *UserUsecase) Login(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := jwtc.GenToken(resp.UserId)
+	accessToken, refreshToken, err := jwtc.GenToken(int(resp.UserId))
 	if err != nil {
 		zap.L().Error("generate token error", zap.Error(err))
 		response.ErrorResponse(c, response.ServerError)

@@ -10,11 +10,11 @@ import (
 )
 
 type AuthClaims struct {
-	UserID int32 `json:"user_id"`
+	UserID int `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
-func GenAccessToken(userID int32) (string, error) {
+func GenAccessToken(userID int) (string, error) {
 	accessSecret := viper.GetString("JWT_ACCESS_SECRET")
 
 	ac := AuthClaims{
@@ -53,7 +53,7 @@ func GenRefreshToken() (string, error) {
 	return refreshToken, nil
 }
 
-func GenToken(userID int32) (string, string, error) {
+func GenToken(userID int) (string, string, error) {
 	accessToken, err := GenAccessToken(userID)
 	if err != nil {
 		return "", "", err

@@ -18,19 +18,19 @@ func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
 		if tokenString == "" {
-			response.AuthErrorResponse(c, response.FormError)
+			response.AuthErrorResponse(c, response.AuthError)
 			return
 		}
 
 		parts := strings.Split(tokenString, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			response.AuthErrorResponse(c, response.FormError)
+			response.AuthErrorResponse(c, response.AuthError)
 			return
 		}
 
 		parsedToken, isExpire, err := jwtc.ParseToken(parts[1])
 		if err != nil {
-			response.AuthErrorResponse(c, response.FormError)
+			response.AuthErrorResponse(c, response.AuthError)
 			return
 		}
 		if isExpire {
