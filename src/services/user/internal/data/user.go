@@ -53,7 +53,9 @@ func (u *userRepo) FindUser(ctx context.Context, phone string) (bool, error) {
 	user := &models.User{}
 
 	if err := u.pg.WithContext(ctx).Where("phone = ?", phone).First(user).Error; err != nil {
-		return false, err
+		if err == gorm.ErrRecordNotFound {
+			return false, nil
+		}
 	}
 
 	return true, nil

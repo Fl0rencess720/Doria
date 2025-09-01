@@ -72,6 +72,12 @@ func (u *UserUsecase) Register(c *gin.Context) {
 	})
 	if err != nil {
 		zap.L().Error("register error", zap.Error(err))
+		response.ErrorResponse(c, response.ServerError)
+		return
+	}
+
+	if resp.Code != 2000 {
+		zap.L().Error("register error", zap.Error(err))
 		response.ErrorResponse(c, uint(resp.Code))
 		return
 	}
