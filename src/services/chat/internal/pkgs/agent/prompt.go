@@ -35,6 +35,7 @@ const (
 		"docs": "在不考虑联机作弊或利用 Bug 的情况下，白金至少需要两个完整的周目，并且要开三周目打大狼希芙，然后推进到王城。总计需要约 2.5 个周目。"
 		"prompt": "黑暗之魂1白金要几周目"
 	}
+	当用户的输入包含了历史数据时，你需要结合历史数据判断是否需要调用工具。
 	`
 
 	ChatSystemPrompt = `
@@ -63,6 +64,7 @@ func newRetrievalTemplate() prompt.ChatTemplate {
 	return prompt.FromMessages(
 		schema.GoTemplate,
 		schema.SystemMessage(RetrievalSystemPrompt),
+		schema.MessagesPlaceholder("history", false),
 		schema.UserMessage("{{.prompt}}"),
 	)
 }
