@@ -24,7 +24,7 @@ tavily:
 agent:
   model:
     chat: "Qwen/Qwen3-235B-A22B"
-    retrieval: "Qwen/Qwen3-235B-A22B"
+    retrieval: "Qwen/Qwen3-32B"
 
 rag:
   milvus:

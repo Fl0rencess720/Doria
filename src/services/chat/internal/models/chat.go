@@ -47,6 +47,7 @@ func (c JSONContent) Value() (driver.Value, error) {
 	if c.Text == "" {
 		return nil, nil
 	}
+
 	return json.Marshal(c)
 }
 
@@ -54,9 +55,11 @@ func (c *JSONContent) Scan(value interface{}) error {
 	if value == nil {
 		return nil
 	}
+
 	bytes, ok := value.([]byte)
 	if !ok {
-		return errors.New(fmt.Sprint("从数据库读取json失败，期望[]byte, 得到", value))
+		return errors.New(fmt.Sprint("Failed to unmarshal JSONB value:", value))
 	}
+
 	return json.Unmarshal(bytes, c)
 }
