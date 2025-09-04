@@ -23,7 +23,7 @@ func NewChatModel(ctx context.Context, hr *rag.HybridRetriever) (*ChatModel, err
 		return nil, err
 	}
 
-	g, err := buildChatGraph(ctx, cm, rcm)
+	g, err := buildChatGraph(ctx, cm, rcm, hr)
 	if err != nil {
 		return nil, err
 	}
