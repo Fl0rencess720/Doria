@@ -121,7 +121,7 @@ func (hr *HybridRetriever) Retrieve(ctx context.Context, query string, opts ...r
 		WithAnnParam(annParam).
 		WithSearchParam(index.MetricTypeKey, "BM25")
 
-	reranker := milvusclient.NewWeightedReranker([]float64{0.8, 0.3})
+	reranker := milvusclient.NewWeightedReranker([]float64{0.7, 0.3})
 
 	resultSets, err := hr.client.HybridSearch(ctx, milvusclient.NewHybridSearchOption(
 		hr.collectionName,

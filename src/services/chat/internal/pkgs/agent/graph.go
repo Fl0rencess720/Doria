@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
@@ -175,9 +176,9 @@ func retrievalLambda(ctx context.Context, input *schema.Message) (map[string]any
 
 	var contents []string
 
-	for _, doc := range docs {
+	for i, doc := range docs {
 		if doc != nil && doc.Content != "" {
-			contents = append(contents, doc.Content)
+			contents = append(contents, fmt.Sprintf("文档片段 %d:\n%s", i+1, doc.Content))
 		}
 	}
 
