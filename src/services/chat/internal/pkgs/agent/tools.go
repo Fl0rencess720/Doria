@@ -73,7 +73,7 @@ func NewRAGTool(ctx context.Context) (tool.InvokableTool, error) {
 }
 
 func tavilySearchTool(ctx context.Context) ([]tool.BaseTool, error) {
-	cli, err := client.NewSSEMCPClient(viper.GetString("tavily.URL") + viper.GetString("TAVILY_API_KEY"))
+	cli, err := client.NewStreamableHttpClient(viper.GetString("tavily.URL") + viper.GetString("TAVILY_API_KEY"))
 	if err != nil {
 		return nil, err
 	}
@@ -100,12 +100,12 @@ func tavilySearchTool(ctx context.Context) ([]tool.BaseTool, error) {
 }
 
 func NewTools(ctx context.Context) {
-	// tavilyTools, err := tavilySearchTool(ctx)
-	// if err != nil {
-	// 	zap.L().Warn("tavily search tool init failed", zap.Error(err))
-	// }
+	tavilyTools, err := tavilySearchTool(ctx)
+	if err != nil {
+		zap.L().Warn("tavily search tool init failed", zap.Error(err))
+	}
 
-	// tools = append(tools, tavilyTools...)
+	chatTools = append(chatTools, tavilyTools...)
 
 	ragTool, err := NewRAGTool(ctx)
 	if err != nil {
