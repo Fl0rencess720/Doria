@@ -3,7 +3,9 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
+	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"
@@ -12,23 +14,25 @@ import (
 
 const (
 	RAgentKey            = "ragent"
-	RetrievalKey         = "retrieval"
+	RetrievalAgentKey    = "retrieval"
 	ChatTplKey           = "chat_tpl"
 	RetrievalTplKey      = "retrieval_tpl"
+	RetrievalLambdaKey   = "retrieval_lambda"
 	dataConvertLambdaKey = "data_convert_lambda"
 )
 
 type state struct {
 	history []*schema.Message
+	prompt  string
+	hr      *rag.HybridRetriever
 }
 
-type RetrievalOutput struct {
+type RetrievalAgentOutput struct {
 	Retrieval bool   `json:"retrieval"`
-	Docs      string `json:"docs"`
-	Prompt    string `json:"prompt"`
+	Query     string `json:"query"`
 }
 
-func buildChatGraph(ctx context.Context, cm model.ToolCallingChatModel, rcm model.ToolCallingChatModel) (*compose.Graph[map[string]any, *schema.Message], error) {
+func buildChatGraph(ctx context.Context, cm model.ToolCallingChatModel, rcm model.ToolCallingChatModel, hr *rag.HybridRetriever) (*compose.Graph[map[string]any, *schema.Message], error) {
 	compose.RegisterSerializableType[state]("state")
 
 	tpl := newChatTemplate()
@@ -57,24 +61,34 @@ func buildChatGraph(ctx context.Context, cm model.ToolCallingChatModel, rcm mode
 		return nil, err
 	}
 
-	retrievalGraph, retrievalGraphOpts := retrievalRagent.ExportGraph()
+	retrievalAgentGraph, retrievalAgentGraphOpts := retrievalRagent.ExportGraph()
 	ragentGraph, ragentGraphOpts := ragent.ExportGraph()
 
 	g := compose.NewGraph[map[string]any, *schema.Message](
 		compose.WithGenLocalState(func(ctx context.Context) *state {
-			return &state{}
+			return &state{
+				hr: hr,
+			}
 		}))
 
 	_ = g.AddChatTemplateNode(RetrievalTplKey, rtpl, compose.WithStatePreHandler(retrievalPreHandler))
 	_ = g.AddChatTemplateNode(ChatTplKey, tpl)
 	_ = g.AddLambdaNode(dataConvertLambdaKey, compose.InvokableLambda(dataConvertLambda))
-	_ = g.AddGraphNode(RetrievalKey, retrievalGraph, retrievalGraphOpts...)
+	_ = g.AddLambdaNode(RetrievalLambdaKey, compose.InvokableLambda(retrievalLambda))
+	_ = g.AddGraphNode(RetrievalAgentKey, retrievalAgentGraph, retrievalAgentGraphOpts...)
 	_ = g.AddGraphNode(RAgentKey, ragentGraph, ragentGraphOpts...)
 
 	_ = g.AddEdge(compose.START, RetrievalTplKey)
-	_ = g.AddEdge(RetrievalTplKey, RetrievalKey)
-	_ = g.AddEdge(RetrievalKey, dataConvertLambdaKey)
+	_ = g.AddEdge(RetrievalTplKey, RetrievalAgentKey)
+
+	_ = g.AddBranch(RetrievalAgentKey, compose.NewGraphBranch(retrievalBranch, map[string]bool{
+		RetrievalLambdaKey:   true,
+		dataConvertLambdaKey: true,
+	}))
+
+	_ = g.AddEdge(RetrievalLambdaKey, ChatTplKey)
 	_ = g.AddEdge(dataConvertLambdaKey, ChatTplKey)
+
 	_ = g.AddEdge(ChatTplKey, RAgentKey)
 	_ = g.AddEdge(RAgentKey, compose.END)
 
@@ -87,28 +101,94 @@ func retrievalPreHandler(ctx context.Context, input map[string]any, state *state
 			state.history = history
 		}
 	}
+
+	if promptValue, exists := input["prompt"]; exists {
+		if prompt, ok := promptValue.(string); ok {
+			state.prompt = prompt
+		}
+	}
+
 	return input, nil
 }
 
-func dataConvertLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
-	retrievalOutput := RetrievalOutput{}
+func retrievalBranch(ctx context.Context, input *schema.Message) (endNode string, err error) {
+	retrievalAgebtOutput := &RetrievalAgentOutput{}
 
-	if err := json.Unmarshal([]byte(input.Content), &retrievalOutput); err != nil {
-		return nil, err
+	if err := json.Unmarshal([]byte(input.Content), retrievalAgebtOutput); err != nil {
+		return compose.END, err
 	}
 
-	var result map[string]any
+	if retrievalAgebtOutput.Retrieval {
+		return RetrievalLambdaKey, nil
+	}
+
+	return dataConvertLambdaKey, nil
+}
+
+func dataConvertLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
+	var history []*schema.Message
+	var prompt string
 
 	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
-		result = map[string]any{
-			"history": state.history,
-			"prompt":  retrievalOutput.Prompt,
-			"docs":    retrievalOutput.Docs,
-		}
+		history = state.history
+		prompt = state.prompt
+
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return map[string]any{
+		"history": history,
+		"prompt":  prompt,
+		"docs":    "",
+	}, nil
+}
+
+func retrievalLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
+	retrievalAgebtOutput := &RetrievalAgentOutput{}
+
+	if err := json.Unmarshal([]byte(input.Content), retrievalAgebtOutput); err != nil {
+		return nil, err
+	}
+
+	query := retrievalAgebtOutput.Query
+
+	var hr *rag.HybridRetriever
+	var history []*schema.Message
+	var prompt string
+
+	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
+		hr = state.hr
+		history = state.history
+		prompt = state.prompt
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	docs, err := hr.Retrieve(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	var contents []string
+
+	for _, doc := range docs {
+		if doc != nil && doc.Content != "" {
+			contents = append(contents, doc.Content)
+		}
+	}
+
+	result := strings.Join(contents, "\n\n")
+	if result == "" {
+		result = "未找到相关文档"
+	}
+
+	return map[string]any{
+		"history": history,
+		"prompt":  prompt,
+		"docs":    result,
+	}, nil
 }

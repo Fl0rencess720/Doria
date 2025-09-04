@@ -113,7 +113,6 @@ func NewTools(ctx context.Context) {
 		ragTool = nil
 	}
 
-	chatTools = append(chatTools, ragTool)
 	ragTools = append(ragTools, ragTool)
 }
 

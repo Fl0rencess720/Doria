@@ -43,3 +43,6 @@ dev/
 # Claude
 CLAUDE.md
 .claude/
+
+# MCP
+.serena/

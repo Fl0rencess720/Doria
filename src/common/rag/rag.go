@@ -162,9 +162,11 @@ func (hr *HybridRetriever) LoadMilvus(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	if err := loadTask.Await(ctx); err != nil {
 		return err
 	}
+
 	return nil
 }
 
