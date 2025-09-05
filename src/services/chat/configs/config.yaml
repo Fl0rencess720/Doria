@@ -31,7 +31,7 @@ rag:
     username: root
   retriever:
     topK: 5
-    collectionName: newC2
+    collectionName: structured_ds1
   embedding:
     model: doubao-embedding-large-text-250515
     
