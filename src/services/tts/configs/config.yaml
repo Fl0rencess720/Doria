@@ -25,3 +25,7 @@ pyroscope:
 project:
   mode: dev
 
+tts:
+  host_url: wss://tts-api.xfyun.cn/v2/tts
+  
+
