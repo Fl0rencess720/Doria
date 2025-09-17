@@ -16,6 +16,7 @@ import (
 type ChatStreamReq struct {
 	ConversationID int32  `json:"conversation_id"`
 	Message        string `json:"message" binding:"required"`
+	DeepSearch     bool   `json:"deepSearch"`
 }
 
 type ChatRepo interface {
@@ -124,6 +125,7 @@ func (u *ChatUseCase) ChatStream(c *gin.Context) {
 		UserId:         int32(userID),
 		Prompt:         req.Message,
 		ConversationId: req.ConversationID,
+		DeepSearch:     req.DeepSearch,
 	})
 	if err != nil {
 		zap.L().Error("chat stream error", zap.Error(err))

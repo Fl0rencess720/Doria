@@ -32,6 +32,7 @@ type ChatStreamReq struct {
 	UserID         uint
 	ConversationID uint
 	Prompt         string
+	DeepSearch     bool
 }
 
 type ChatUseCase struct {
@@ -52,7 +53,7 @@ func (u *ChatUseCase) ChatStream(ctx context.Context, req *ChatStreamReq) (*sche
 	)
 
 	if req.ConversationID == 0 {
-		title := "测试主题名"
+		title := req.Prompt
 		req.ConversationID, err = u.chatRepo.CreateConversation(ctx, &models.Conversation{UserID: req.UserID, Title: title})
 		if err != nil {
 			return nil, 0, err

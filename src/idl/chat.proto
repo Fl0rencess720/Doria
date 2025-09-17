@@ -15,6 +15,7 @@ message ChatStreamRequest {
     int32 user_id = 1;
     string prompt = 2;
     int32 conversation_id = 3;
+    bool deepSearch = 4;
 }
 
 message ChatStreamResponse {

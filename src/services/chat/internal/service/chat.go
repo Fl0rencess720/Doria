@@ -21,6 +21,7 @@ func (s *ChatService) ChatStream(
 		UserID:         uint(req.UserId),
 		ConversationID: uint(req.ConversationId),
 		Prompt:         req.Prompt,
+		DeepSearch:     req.DeepSearch,
 	})
 	if err != nil {
 		zap.L().Error("chat stream error", zap.Error(err))
