@@ -7,7 +7,10 @@
 package tts
 
 import (
+	context "context"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -15,10 +18,15 @@ import (
 // Requires gRPC-Go v1.64.0 or later.
 const _ = grpc.SupportPackageIsVersion9
 
+const (
+	TTSService_SynthesizeSpeech_FullMethodName = "/tts.TTSService/SynthesizeSpeech"
+)
+
 // TTSServiceClient is the client API for TTSService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TTSServiceClient interface {
+	SynthesizeSpeech(ctx context.Context, in *SynthesizeSpeechRequest, opts ...grpc.CallOption) (*SynthesizeSpeechResponse, error)
 }
 
 type tTSServiceClient struct {
@@ -29,10 +37,21 @@ func NewTTSServiceClient(cc grpc.ClientConnInterface) TTSServiceClient {
 	return &tTSServiceClient{cc}
 }
 
+func (c *tTSServiceClient) SynthesizeSpeech(ctx context.Context, in *SynthesizeSpeechRequest, opts ...grpc.CallOption) (*SynthesizeSpeechResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SynthesizeSpeechResponse)
+	err := c.cc.Invoke(ctx, TTSService_SynthesizeSpeech_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TTSServiceServer is the server API for TTSService service.
 // All implementations must embed UnimplementedTTSServiceServer
 // for forward compatibility.
 type TTSServiceServer interface {
+	SynthesizeSpeech(context.Context, *SynthesizeSpeechRequest) (*SynthesizeSpeechResponse, error)
 	mustEmbedUnimplementedTTSServiceServer()
 }
 
@@ -43,6 +62,9 @@ type TTSServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedTTSServiceServer struct{}
 
+func (UnimplementedTTSServiceServer) SynthesizeSpeech(context.Context, *SynthesizeSpeechRequest) (*SynthesizeSpeechResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SynthesizeSpeech not implemented")
+}
 func (UnimplementedTTSServiceServer) mustEmbedUnimplementedTTSServiceServer() {}
 func (UnimplementedTTSServiceServer) testEmbeddedByValue()                    {}
 
@@ -64,13 +86,36 @@ func RegisterTTSServiceServer(s grpc.ServiceRegistrar, srv TTSServiceServer) {
 	s.RegisterService(&TTSService_ServiceDesc, srv)
 }
 
+func _TTSService_SynthesizeSpeech_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SynthesizeSpeechRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TTSServiceServer).SynthesizeSpeech(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TTSService_SynthesizeSpeech_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TTSServiceServer).SynthesizeSpeech(ctx, req.(*SynthesizeSpeechRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TTSService_ServiceDesc is the grpc.ServiceDesc for TTSService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var TTSService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "tts.TTSService",
 	HandlerType: (*TTSServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "tts.proto",
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "SynthesizeSpeech",
+			Handler:    _TTSService_SynthesizeSpeech_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "tts.proto",
 }
