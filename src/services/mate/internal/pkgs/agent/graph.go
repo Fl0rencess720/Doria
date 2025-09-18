@@ -34,7 +34,8 @@ type RetrievalAgentOutput struct {
 	Query     string `json:"query"`
 }
 
-func buildChatGraph(ctx context.Context, mainCM model.ToolCallingChatModel, intentCM model.ToolCallingChatModel, hr *rag.HybridRetriever) (*compose.Graph[map[string]any, *schema.Message], error) {
+func buildChatGraph(ctx context.Context, mainCM model.ToolCallingChatModel,
+	intentCM model.ToolCallingChatModel, hr *rag.HybridRetriever) (*compose.Graph[map[string]any, *schema.Message], error) {
 	compose.RegisterSerializableType[state]("state")
 
 	responseTpl := newResponseTemplate()

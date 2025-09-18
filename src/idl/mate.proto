@@ -4,5 +4,30 @@ package mate;
 
 option go_package = "rpc/mate";
 
-service MateService {      
+service MateService {  
+    rpc ChatStream(ChatStreamRequest) returns (stream ChatStreamResponse);
+    rpc GetConversationMessages(GetConversationMessagesRequest) returns (GetConversationMessagesResponse);
+}
+
+message ChatStreamRequest {
+    int32 user_id = 1;
+    string prompt = 2;
+}
+
+message ChatStreamResponse {
+    string chunk = 1;
+}
+
+message Message {
+    string role = 1;
+    string content = 2;
+    int64 create_time = 3;
+}
+
+message GetConversationMessagesRequest {
+    int32 user_id = 1;
+}
+
+message GetConversationMessagesResponse {
+    repeated Message messages = 1;
 }
