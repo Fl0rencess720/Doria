@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"net/http"
 
 	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
@@ -37,10 +38,13 @@ func (u *TTSUsecase) SynthesizeSpeech(c *gin.Context) {
 		Text: text,
 	})
 	if err != nil {
-		zap.L().Warn("tts client error", zap.Error(err))
+		zap.L().Error("tts client error", zap.Error(err))
 		response.ErrorResponse(c, response.ServerError)
 		return
 	}
 
-	c.Data(http.StatusOK, "audio/mp3", audio.AudioContent)
+	audioContentLength := int64(len(audio.AudioContent))
+	audioReader := bytes.NewReader(audio.AudioContent)
+
+	c.DataFromReader(http.StatusOK, audioContentLength, "audio/mp3", audioReader, nil)
 }

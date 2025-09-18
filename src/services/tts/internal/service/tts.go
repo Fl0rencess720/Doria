@@ -7,12 +7,12 @@ import (
 )
 
 func (s *TTSService) SynthesizeSpeech(ctx context.Context, req *ttsapi.SynthesizeSpeechRequest) (*ttsapi.SynthesizeSpeechResponse, error) {
-	audio, err := s.ttsUseCase.SynthesizeSpeech(req.Text)
+	audioContent, err := s.ttsUseCase.SynthesizeSpeech(req.Text)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ttsapi.SynthesizeSpeechResponse{
-		AudioContent: audio,
+		AudioContent: audioContent,
 	}, nil
 }
