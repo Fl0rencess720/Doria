@@ -26,3 +26,5 @@ services:
     name: Bonfire-Lit.Service.Chat
   user:
     name: Bonfire-Lit.Service.User
+  tts:
+    name: Bonfire-Lit.Service.TTS

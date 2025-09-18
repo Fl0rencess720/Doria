@@ -27,18 +27,18 @@ type Common struct {
 }
 
 type Business struct {
-	Aue    string `json:"aue"`    // 音频格式
-	Sfl    int    `json:"sfl"`    // 流式返回MP3标志
-	Vcn    string `json:"vcn"`    // 发音人
-	Speed  int    `json:"speed"`  // 语速 [0-100]
-	Volume int    `json:"volume"` // 音量 [0-100]
-	Pitch  int    `json:"pitch"`  // 音高 [0-100]
-	Tte    string `json:"tte"`    // 文本编码格式
+	Aue    string `json:"aue"`
+	Sfl    int    `json:"sfl"`
+	Vcn    string `json:"vcn"`
+	Speed  int    `json:"speed"`
+	Volume int    `json:"volume"`
+	Pitch  int    `json:"pitch"`
+	Tte    string `json:"tte"`
 }
 
 type Data struct {
-	Text   string `json:"text"`   // base64编码的文本
-	Status int    `json:"status"` // 固定为2
+	Text   string `json:"text"`
+	Status int    `json:"status"`
 }
 
 func NewTTSUseCase(repo TTSRepo) *TTSUseCase {
