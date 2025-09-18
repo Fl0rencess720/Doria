@@ -2,4 +2,6 @@ package consts
 
 var (
 	DefaultLogFilePath = "./zap.log"
+
+	ContentTypeMP3 = "audio/mp3"
 )

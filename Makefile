@@ -18,12 +18,14 @@ help:
 	@echo "  image     - Run image service"
 	@echo "  chat     - Run chat service"
 	@echo "  user     - Run user service"
+	@echo "  tts     - Run tts service"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make run gateway"
 	@echo "  make run image"
 	@echo "  make run chat"
 	@echo "  make run user"
+	@echo "  make run tts"
 
 .PHONY: gateway image
 gateway:
@@ -36,3 +38,5 @@ chat:
 	@go run src/services/chat/cmd/main.go src/services/chat/cmd/wire_gen.go --config src/services/chat/configs
 user:
 	@go run src/services/user/cmd/main.go src/services/user/cmd/wire_gen.go --config src/services/user/configs
+tts:
+	@go run src/services/tts/cmd/main.go src/services/tts/cmd/wire_gen.go --config src/services/tts/configs

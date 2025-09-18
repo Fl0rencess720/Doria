@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package tts;
+
+option go_package = "rpc/tts";
+
+service TTSService {
+    rpc SynthesizeSpeech(SynthesizeSpeechRequest) returns (SynthesizeSpeechResponse);
+}
+
+message SynthesizeSpeechRequest {
+    string text = 1;
+}
+
+message SynthesizeSpeechResponse {
+    bytes audio_content = 1;
+}
