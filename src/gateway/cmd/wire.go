@@ -10,9 +10,9 @@ import (
 
 	"github.com/google/wire"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/data"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/service"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
+	"github.com/Fl0rencess720/Doria/src/gateway/service"
 )
 
 type App struct {

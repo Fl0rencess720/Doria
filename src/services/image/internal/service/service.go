@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/registry"
-	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/image/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/common/registry"
+	imageapi "github.com/Fl0rencess720/Doria/src/rpc/image"
+	"github.com/Fl0rencess720/Doria/src/services/image/internal/biz"
 	"github.com/google/wire"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/consts"
+	"github.com/Fl0rencess720/Doria/src/consts"
 	"github.com/natefinch/lumberjack"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

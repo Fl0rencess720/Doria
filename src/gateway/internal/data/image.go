@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
-	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	imageapi "github.com/Fl0rencess720/Doria/src/rpc/image"
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

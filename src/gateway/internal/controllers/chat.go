@@ -5,9 +5,9 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/middlewares"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
-	chatapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/chat"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/middlewares"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
+	chatapi "github.com/Fl0rencess720/Doria/src/rpc/chat"
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

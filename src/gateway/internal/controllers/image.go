@@ -4,8 +4,8 @@ import (
 	"io"
 	"mime/multipart"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
-	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
+	imageapi "github.com/Fl0rencess720/Doria/src/rpc/image"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )

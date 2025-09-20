@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	imageapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/image"
+	imageapi "github.com/Fl0rencess720/Doria/src/rpc/image"
 )
 
 func (s *ImageService) GenerateTextOfImage(ctx context.Context, req *imageapi.GenerateTextRequest) (resp *imageapi.GenerateTextResponse, err error) {

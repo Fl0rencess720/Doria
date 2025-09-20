@@ -8,10 +8,10 @@ package main
 import (
 	"github.com/google/wire"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/configs"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/biz"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/data"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/service"
+	"github.com/Fl0rencess720/Doria/src/services/user/configs"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/data"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/service"
 )
 
 type App struct {

@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package mate;
+
+option go_package = "rpc/mate";
+
+service MateService {  
+    rpc Chat(ChatRequest) returns (ChatResponse);
+    rpc GetConversationMessages(GetConversationMessagesRequest) returns (GetConversationMessagesResponse);
+}
+
+message ChatRequest {
+    int32 user_id = 1;
+    string prompt = 2;
+}
+
+message ChatResponse {
+    string message = 1;
+}
+
+message Message {
+    string role = 1;
+    string content = 2;
+    int64 create_time = 3;
+}
+
+message GetConversationMessagesRequest {
+    int32 user_id = 1;
+}
+
+message GetConversationMessagesResponse {
+    repeated Message messages = 1;
+}

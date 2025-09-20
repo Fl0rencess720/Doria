@@ -1,6 +1,6 @@
-# Bonfire-Lit
+# Doria
 
-Bonfire-Lit is a microservices-based Go application that provides AI-powered chat and image processing capabilities. The system follows clean architecture principles and uses gRPC for service-to-service communication.
+Doria is a microservices-based Go application that provides AI-powered chat and image processing capabilities. The system follows clean architecture principles and uses gRPC for service-to-service communication.
 
 ## Table of Contents
 
@@ -68,7 +68,7 @@ Each service is independently deployable and communicates via gRPC. The gateway 
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd Bonfire-Lit
+   cd Doria
    ```
 
 2. Install dependencies:

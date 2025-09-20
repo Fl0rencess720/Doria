@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
+	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"
@@ -61,49 +61,34 @@ func buildChatGraph(ctx context.Context, mainCM model.ToolCallingChatModel, inte
 
 	intentDetectorAgentGraph, intentDetectorAgentGraphOpts := intentDetectorAgent.ExportGraph()
 	mainChatAgentGraph, mainChatAgentGraphOpts := mainChatAgent.ExportGraph()
+
 	g := compose.NewGraph[map[string]any, *schema.Message](
 		compose.WithGenLocalState(func(ctx context.Context) *state {
 			return &state{
-				hr: hr, // 将HybridRetriever作为state的一部分传递
+				hr: hr,
 			}
 		}))
-	// 3. IntentPromptTplKey: 意图识别的提示模板节点。
-	// 原名：RetrievalTplKey (更名为 IntentPromptTplKey，明确其用于意图识别)
-	_ = g.AddChatTemplateNode(IntentPromptTplKey, intentTpl, compose.WithStatePreHandler(inputContextLoader)) // preHandler也需要更名
-	// 4. ResponsePromptTplKey: 最终回复的提示模板节点。
-	// 原名：ChatTplKey (更名为 ResponsePromptTplKey，明确其用于生成最终回复)
+
+	_ = g.AddChatTemplateNode(IntentPromptTplKey, intentTpl, compose.WithStatePreHandler(inputContextLoader))
 	_ = g.AddChatTemplateNode(ResponsePromptTplKey, responseTpl)
-	// 5. NoRAGDataPreparerLambdaKey: 当意图识别判断不需要RAG时，准备数据跳过检索。
-	// 原名：dataConvertLambdaKey (不够具体，应该明确它什么情况下转换数据以及转换的目的)
+
 	_ = g.AddLambdaNode(NoRAGDataPreparerLambdaKey, compose.InvokableLambda(noRAGDataPreparerLambda))
-	// 6. DocumentRetrieverLambdaKey: 执行文档检索并格式化结果的Lambda节点。
-	// 原名：RetrievalLambdaKey (更名为 DocumentRetrieverLambdaKey，明确其执行RAG Retrieval)
 	_ = g.AddLambdaNode(RetrieverLambdaKey, compose.InvokableLambda(retrievalLambda))
-	// 7. IntentDetectorAgentKey: 代理节点，执行意图检测。
-	// 原名：RetrievalAgentKey (更名为 IntentDetectorAgentKey，明确其是负责意图判断的Agent)
+
 	_ = g.AddGraphNode(IntentDetectorAgentKey, intentDetectorAgentGraph, intentDetectorAgentGraphOpts...)
-	// 8. MainChatAgentKey: 代理节点，执行主对话和最终回复生成。
-	// 原名：RAgentKey (更名为 MainChatAgentKey，明确其是核心的对话Agent)
 	_ = g.AddGraphNode(MainChatAgentKey, mainChatAgentGraph, mainChatAgentGraphOpts...)
-	// =================================== 图的边和分支定义 ===================================
-	// 流程开始，首先进入意图识别的提示模板。
+
 	_ = g.AddEdge(compose.START, IntentPromptTplKey)
-	// 意图识别提示模板的输出作为输入传递给意图识别代理。
 	_ = g.AddEdge(IntentPromptTplKey, IntentDetectorAgentKey)
-	// 意图识别代理根据判断结果进行分支。
-	// 命名：RAGDecisionBranch，明确它是RAG决策的分支。
 	_ = g.AddBranch(IntentDetectorAgentKey, compose.NewGraphBranch(ragDecisionBranch, map[string]bool{
 		RetrieverLambdaKey:         true,
 		NoRAGDataPreparerLambdaKey: true,
 	}))
-	// 文档检索Lambda的输出（包含文档）作为输入给最终回复提示模板。
 	_ = g.AddEdge(RetrieverLambdaKey, ResponsePromptTplKey)
-	// 跳过检索的Lambda的输出（不含文档）作为输入给最终回复提示模板。
 	_ = g.AddEdge(NoRAGDataPreparerLambdaKey, ResponsePromptTplKey)
-	// 最终回复提示模板的输出作为输入给主对话代理。
 	_ = g.AddEdge(ResponsePromptTplKey, MainChatAgentKey)
-	// 主对话代理的输出即为整个图的最终输出。
 	_ = g.AddEdge(MainChatAgentKey, compose.END)
+
 	return g, nil
 }
 

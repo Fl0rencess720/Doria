@@ -8,10 +8,10 @@ package main
 import (
 	"github.com/google/wire"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/tts/configs"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/tts/internal/biz"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/tts/internal/data"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/tts/internal/service"
+	"github.com/Fl0rencess720/Doria/src/services/tts/configs"
+	"github.com/Fl0rencess720/Doria/src/services/tts/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/services/tts/internal/data"
+	"github.com/Fl0rencess720/Doria/src/services/tts/internal/service"
 )
 
 type App struct {

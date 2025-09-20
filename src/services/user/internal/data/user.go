@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/biz"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/models"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/models"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

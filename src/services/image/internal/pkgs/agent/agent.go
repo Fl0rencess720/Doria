@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/image/internal/pkgs/utils"
+	"github.com/Fl0rencess720/Doria/src/services/image/internal/pkgs/utils"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
