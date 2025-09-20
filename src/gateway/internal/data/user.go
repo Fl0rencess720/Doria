@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
-	userapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/user"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	userapi "github.com/Fl0rencess720/Doria/src/rpc/user"
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
-	mateapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/mate"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

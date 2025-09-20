@@ -1,6 +1,6 @@
 server:
   grpc:
-    name: Bonfire-Lit.Service.Chat
+    name: Doria.Service.Chat
     port: 9000
     timeout: 900s
 

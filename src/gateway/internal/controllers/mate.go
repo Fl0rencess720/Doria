@@ -3,9 +3,9 @@ package controllers
 import (
 	"context"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/middlewares"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
-	mateapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/mate"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/middlewares"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
+	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )

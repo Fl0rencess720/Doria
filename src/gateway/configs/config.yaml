@@ -1,6 +1,6 @@
 server:
   http:
-    name: Bonfire-Lit.Gateway
+    name: Doria.Gateway
     addr: :8000
     timeout: 900s
     
@@ -21,12 +21,12 @@ chatmodel:
 
 services:
   image:
-    name: Bonfire-Lit.Service.Image
+    name: Doria.Service.Image
   chat:
-    name: Bonfire-Lit.Service.Chat
+    name: Doria.Service.Chat
   user:
-    name: Bonfire-Lit.Service.User
+    name: Doria.Service.User
   tts:
-    name: Bonfire-Lit.Service.TTS
+    name: Doria.Service.TTS
   mate:
-    name: Bonfire-Lit.Service.Mate
+    name: Doria.Service.Mate

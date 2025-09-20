@@ -1,7 +1,7 @@
 package mate
 
 import (
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
 	"github.com/gin-gonic/gin"
 )
 

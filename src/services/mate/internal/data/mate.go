@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/biz"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/models"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"

@@ -3,8 +3,8 @@ package middlewares
 import (
 	"strings"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/jwtc"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/jwtc"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
 	"github.com/gin-gonic/gin"
 )
 

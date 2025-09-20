@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
+	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"

@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	userapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/user"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/biz"
+	userapi "github.com/Fl0rencess720/Doria/src/rpc/user"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/biz"
 )
 
 func (s *UserService) Register(ctx context.Context, req *userapi.RegisterRequest) (*userapi.RegisterResponse, error) {

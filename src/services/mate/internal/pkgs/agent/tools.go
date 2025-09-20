@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
+	"github.com/Fl0rencess720/Doria/src/common/rag"
 	mcpp "github.com/cloudwego/eino-ext/components/tool/mcp"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
@@ -83,7 +83,7 @@ func tavilySearchTool(ctx context.Context) ([]tool.BaseTool, error) {
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 	initRequest.Params.ClientInfo = mcp.Implementation{
-		Name:    "bonfire-lit-client",
+		Name:    "Doria-client",
 		Version: "1.0.0",
 	}
 

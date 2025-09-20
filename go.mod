@@ -1,4 +1,4 @@
-module github.com/Fl0rencess720/Bonfire-Lit
+module github.com/Fl0rencess720/Doria
 
 go 1.24.4
 

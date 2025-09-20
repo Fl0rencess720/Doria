@@ -5,9 +5,9 @@ import (
 	"errors"
 	"io"
 
-	chatapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/chat"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/biz"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/models"
+	chatapi "github.com/Fl0rencess720/Doria/src/rpc/chat"
+	"github.com/Fl0rencess720/Doria/src/services/chat/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/services/chat/internal/models"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )

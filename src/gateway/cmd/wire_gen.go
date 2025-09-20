@@ -7,10 +7,11 @@
 package main
 
 import (
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/controllers"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/data"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/service"
 	"net/http"
+
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
+	"github.com/Fl0rencess720/Doria/src/gateway/service"
 )
 
 // Injectors from wire.go:

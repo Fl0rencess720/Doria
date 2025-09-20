@@ -1,6 +1,6 @@
 server:
   grpc:
-    name: Bonfire-Lit.Service.Image
+    name: Doria.Service.Image
     port: 9001
     timeout: 900s
 

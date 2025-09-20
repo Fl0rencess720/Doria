@@ -3,9 +3,9 @@ package controllers
 import (
 	"context"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/jwtc"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
-	userapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/user"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/jwtc"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
+	userapi "github.com/Fl0rencess720/Doria/src/rpc/user"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )

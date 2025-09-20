@@ -3,9 +3,9 @@ package biz
 import (
 	"context"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/models"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/chat/internal/pkgs/agent"
+	"github.com/Fl0rencess720/Doria/src/common/rag"
+	"github.com/Fl0rencess720/Doria/src/services/chat/internal/models"
+	"github.com/Fl0rencess720/Doria/src/services/chat/internal/pkgs/agent"
 	"github.com/cloudwego/eino/schema"
 )
 

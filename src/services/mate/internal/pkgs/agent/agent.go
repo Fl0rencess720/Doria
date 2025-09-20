@@ -3,8 +3,8 @@ package agent
 import (
 	"context"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/models"
+	"github.com/Fl0rencess720/Doria/src/common/rag"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )

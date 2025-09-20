@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	mateapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/mate"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/biz"
+	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/biz"
 )
 
 func (s *MateService) Chat(ctx context.Context, req *mateapi.ChatRequest) (*mateapi.ChatResponse, error) {

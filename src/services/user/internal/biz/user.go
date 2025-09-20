@@ -3,9 +3,9 @@ package biz
 import (
 	"context"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/models"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/pkgs/response"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/user/internal/pkgs/utils"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/models"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/pkgs/response"
+	"github.com/Fl0rencess720/Doria/src/services/user/internal/pkgs/utils"
 )
 
 type UserUseCase struct {

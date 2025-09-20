@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/conf"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/logging"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/profiling"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/registry"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/tracing"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/configs"
+	"github.com/Fl0rencess720/Doria/src/common/conf"
+	"github.com/Fl0rencess720/Doria/src/common/logging"
+	"github.com/Fl0rencess720/Doria/src/common/profiling"
+	"github.com/Fl0rencess720/Doria/src/common/registry"
+	"github.com/Fl0rencess720/Doria/src/common/tracing"
+	"github.com/Fl0rencess720/Doria/src/gateway/configs"
 	"github.com/spf13/viper"
 
 	"github.com/cloudwego/eino-ext/callbacks/langfuse"

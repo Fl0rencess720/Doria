@@ -3,9 +3,9 @@ package biz
 import (
 	"context"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/rag"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/models"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/pkgs/agent"
+	"github.com/Fl0rencess720/Doria/src/common/rag"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/pkgs/agent"
 )
 
 type MateRepo interface {

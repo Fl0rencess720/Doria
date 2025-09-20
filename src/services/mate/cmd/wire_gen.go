@@ -7,10 +7,10 @@
 package main
 
 import (
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/configs"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/biz"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/data"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/mate/internal/service"
+	"github.com/Fl0rencess720/Doria/src/services/mate/configs"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/data"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/service"
 )
 
 // Injectors from wire.go:

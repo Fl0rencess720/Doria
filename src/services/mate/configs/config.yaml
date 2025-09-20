@@ -1,6 +1,6 @@
 server:
   grpc:
-    name: Bonfire-Lit.Service.Mate
+    name: Doria.Service.Mate
     port: 9003
     timeout: 900s
 

@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/tts/pkgs/utils"
+	"github.com/Fl0rencess720/Doria/src/services/tts/pkgs/utils"
 	"github.com/gorilla/websocket"
 	"github.com/spf13/viper"
 )

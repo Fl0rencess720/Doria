@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"net/http"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/gateway/internal/pkgs/response"
-	ttsapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/tts"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
+	ttsapi "github.com/Fl0rencess720/Doria/src/rpc/tts"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )

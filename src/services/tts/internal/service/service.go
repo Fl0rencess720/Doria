@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Fl0rencess720/Bonfire-Lit/src/common/registry"
-	ttsapi "github.com/Fl0rencess720/Bonfire-Lit/src/rpc/tts"
-	"github.com/Fl0rencess720/Bonfire-Lit/src/services/tts/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/common/registry"
+	ttsapi "github.com/Fl0rencess720/Doria/src/rpc/tts"
+	"github.com/Fl0rencess720/Doria/src/services/tts/internal/biz"
 	"github.com/google/wire"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
