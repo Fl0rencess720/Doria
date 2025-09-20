@@ -28,3 +28,5 @@ services:
     name: Bonfire-Lit.Service.User
   tts:
     name: Bonfire-Lit.Service.TTS
+  mate:
+    name: Bonfire-Lit.Service.Mate

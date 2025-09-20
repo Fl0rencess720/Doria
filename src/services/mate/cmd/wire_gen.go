@@ -17,7 +17,8 @@ import (
 
 func wireApp() *App {
 	string2 := configs.GetServiceName()
-	mateRepo := data.NewMateRepo()
+	db := data.NewPostgres()
+	mateRepo := data.NewMateRepo(db)
 	mateUseCase := biz.NewMateUseCase(mateRepo)
 	mateService := service.NewMateService(string2, mateUseCase)
 	app := NewApp(mateService)

@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MateService_ChatStream_FullMethodName              = "/mate.MateService/ChatStream"
+	MateService_Chat_FullMethodName                    = "/mate.MateService/Chat"
 	MateService_GetConversationMessages_FullMethodName = "/mate.MateService/GetConversationMessages"
 )
 
@@ -27,7 +27,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MateServiceClient interface {
-	ChatStream(ctx context.Context, in *ChatStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ChatStreamResponse], error)
+	Chat(ctx context.Context, in *ChatRequest, opts ...grpc.CallOption) (*ChatResponse, error)
 	GetConversationMessages(ctx context.Context, in *GetConversationMessagesRequest, opts ...grpc.CallOption) (*GetConversationMessagesResponse, error)
 }
 
@@ -39,24 +39,15 @@ func NewMateServiceClient(cc grpc.ClientConnInterface) MateServiceClient {
 	return &mateServiceClient{cc}
 }
 
-func (c *mateServiceClient) ChatStream(ctx context.Context, in *ChatStreamRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ChatStreamResponse], error) {
+func (c *mateServiceClient) Chat(ctx context.Context, in *ChatRequest, opts ...grpc.CallOption) (*ChatResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &MateService_ServiceDesc.Streams[0], MateService_ChatStream_FullMethodName, cOpts...)
+	out := new(ChatResponse)
+	err := c.cc.Invoke(ctx, MateService_Chat_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[ChatStreamRequest, ChatStreamResponse]{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
+	return out, nil
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type MateService_ChatStreamClient = grpc.ServerStreamingClient[ChatStreamResponse]
 
 func (c *mateServiceClient) GetConversationMessages(ctx context.Context, in *GetConversationMessagesRequest, opts ...grpc.CallOption) (*GetConversationMessagesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -72,7 +63,7 @@ func (c *mateServiceClient) GetConversationMessages(ctx context.Context, in *Get
 // All implementations must embed UnimplementedMateServiceServer
 // for forward compatibility.
 type MateServiceServer interface {
-	ChatStream(*ChatStreamRequest, grpc.ServerStreamingServer[ChatStreamResponse]) error
+	Chat(context.Context, *ChatRequest) (*ChatResponse, error)
 	GetConversationMessages(context.Context, *GetConversationMessagesRequest) (*GetConversationMessagesResponse, error)
 	mustEmbedUnimplementedMateServiceServer()
 }
@@ -84,8 +75,8 @@ type MateServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedMateServiceServer struct{}
 
-func (UnimplementedMateServiceServer) ChatStream(*ChatStreamRequest, grpc.ServerStreamingServer[ChatStreamResponse]) error {
-	return status.Errorf(codes.Unimplemented, "method ChatStream not implemented")
+func (UnimplementedMateServiceServer) Chat(context.Context, *ChatRequest) (*ChatResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Chat not implemented")
 }
 func (UnimplementedMateServiceServer) GetConversationMessages(context.Context, *GetConversationMessagesRequest) (*GetConversationMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetConversationMessages not implemented")
@@ -111,16 +102,23 @@ func RegisterMateServiceServer(s grpc.ServiceRegistrar, srv MateServiceServer) {
 	s.RegisterService(&MateService_ServiceDesc, srv)
 }
 
-func _MateService_ChatStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ChatStreamRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
+func _MateService_Chat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChatRequest)
+	if err := dec(in); err != nil {
+		return nil, err
 	}
-	return srv.(MateServiceServer).ChatStream(m, &grpc.GenericServerStream[ChatStreamRequest, ChatStreamResponse]{ServerStream: stream})
+	if interceptor == nil {
+		return srv.(MateServiceServer).Chat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MateService_Chat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MateServiceServer).Chat(ctx, req.(*ChatRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type MateService_ChatStreamServer = grpc.ServerStreamingServer[ChatStreamResponse]
 
 func _MateService_GetConversationMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetConversationMessagesRequest)
@@ -148,16 +146,14 @@ var MateService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*MateServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "Chat",
+			Handler:    _MateService_Chat_Handler,
+		},
+		{
 			MethodName: "GetConversationMessages",
 			Handler:    _MateService_GetConversationMessages_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "ChatStream",
-			Handler:       _MateService_ChatStream_Handler,
-			ServerStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "mate.proto",
 }

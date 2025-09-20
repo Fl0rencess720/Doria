@@ -5,17 +5,17 @@ package mate;
 option go_package = "rpc/mate";
 
 service MateService {  
-    rpc ChatStream(ChatStreamRequest) returns (stream ChatStreamResponse);
+    rpc Chat(ChatRequest) returns (ChatResponse);
     rpc GetConversationMessages(GetConversationMessagesRequest) returns (GetConversationMessagesResponse);
 }
 
-message ChatStreamRequest {
+message ChatRequest {
     int32 user_id = 1;
     string prompt = 2;
 }
 
-message ChatStreamResponse {
-    string chunk = 1;
+message ChatResponse {
+    string message = 1;
 }
 
 message Message {

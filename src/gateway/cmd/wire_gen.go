@@ -28,7 +28,10 @@ func wireApp() *App {
 	ttsRepo := data.NewTTSRepo()
 	ttsServiceClient := data.NewTTSClient()
 	ttsUsecase := controllers.NewTTSUsecase(ttsRepo, ttsServiceClient)
-	server := service.NewHTTPServer(imageUsecase, chatUseCase, userUsecase, ttsUsecase)
+	mateRepo := data.NewMateRepo()
+	mateServiceClient := data.NewMateClient()
+	mateUsecase := controllers.NewMateUsecase(mateRepo, mateServiceClient)
+	server := service.NewHTTPServer(imageUsecase, chatUseCase, userUsecase, ttsUsecase, mateUsecase)
 	app := NewApp(server)
 	return app
 }
