@@ -45,17 +45,17 @@ func NewAgent(ctx context.Context, hr *rag.HybridRetriever) (*Agent, error) {
 	}, nil
 }
 
-func (m *Agent) Chat(ctx context.Context, memory []*models.MateMessage, prompt string) (*schema.Message, error) {
-
-	guidelines, err := json.Marshal(m.guidelines)
+func (a *Agent) Chat(ctx context.Context, memory []*models.MateMessage, prompt string) (*schema.Message, error) {
+	guidelines, err := json.Marshal(a.guidelines)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := m.runnable.Invoke(ctx, map[string]any{
+	response, err := a.runnable.Invoke(ctx, map[string]any{
 		"prompt":     prompt,
 		"guidelines": string(guidelines),
 		"memory":     memory,
+		"history":    []*schema.Message{},
 	})
 	if err != nil {
 		return nil, err

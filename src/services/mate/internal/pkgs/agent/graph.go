@@ -21,15 +21,13 @@ const (
 
 	ActiveGuidelinesLambdaKey = "active_guidelines_lambda"
 	ToolCallingLambdaKey      = "tool_calling_lambda"
-
-	ToolCallingDecisionBranch = "tool_calling_decision_branch"
 )
 
 type state struct {
 	history    []*schema.Message
 	prompt     string
 	hr         *rag.HybridRetriever
-	guidelines []*Guideline
+	guidelines string
 }
 
 func buildChatGraph(_ context.Context, mainCM model.ToolCallingChatModel,
@@ -62,12 +60,11 @@ func buildChatGraph(_ context.Context, mainCM model.ToolCallingChatModel,
 	_ = g.AddEdge(GuidelineProposerPromptTplKey, GuidelineProposerChatModelKey)
 	_ = g.AddEdge(GuidelineProposerChatModelKey, ActiveGuidelinesLambdaKey)
 
-	_ = g.AddBranch(ToolCallingDecisionBranch, compose.NewGraphBranch(toolCallingDecisionBranch, map[string]bool{
+	_ = g.AddBranch(ActiveGuidelinesLambdaKey, compose.NewGraphBranch(toolCallingDecisionBranch, map[string]bool{
 		ToolCallerPromptTplKey: true,
 		DoriaPromptTplKey:      true,
 	}))
 
-	_ = g.AddEdge(ActiveGuidelinesLambdaKey, ToolCallerPromptTplKey)
 	_ = g.AddEdge(ToolCallerPromptTplKey, ToolCallerChatModelKey)
 	_ = g.AddEdge(ToolCallerChatModelKey, ToolCallingLambdaKey)
 	_ = g.AddEdge(ToolCallingLambdaKey, DoriaPromptTplKey)
@@ -84,14 +81,22 @@ func saveInputToState(ctx context.Context, input map[string]any, state *state) (
 	if h, ok := input["history"].([]*schema.Message); ok {
 		state.history = h
 	}
+	if g, ok := input["guidelines"].(string); ok {
+		state.guidelines = g
+	}
+
 	return input, nil
+}
+
+type InputPayload struct {
+	GuidelineEvaluations []*GuidelineEvaluation `json:"guideline_evaluations"`
 }
 
 func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
 	var (
 		history    []*schema.Message
 		prompt     string
-		guidelines []*Guideline
+		guidelines string
 	)
 
 	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
@@ -103,13 +108,15 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 		return nil, err
 	}
 
-	guidelineEvaluations := make([]*GuidelineEvaluation, 0)
-	activeGuidelines := make([]*Guideline, 0)
+	var payload InputPayload
 
-	if err := json.Unmarshal([]byte(input.Content), &guidelineEvaluations); err != nil {
+	if err := json.Unmarshal([]byte(input.Content), &payload); err != nil {
 		return nil, err
 	}
 
+	guidelineEvaluations := payload.GuidelineEvaluations
+
+	activeGuidelines := make([]*Guideline, 0)
 	if len(guidelineEvaluations) == 0 {
 		return map[string]any{
 			"history":    history,
@@ -135,8 +142,13 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 		}, nil
 	}
 
+	guidelinesList := make([]*Guideline, 0)
+	if err := json.Unmarshal([]byte(guidelines), &guidelinesList); err != nil {
+		return nil, err
+	}
+
 	guidelineMap := make(map[string]*Guideline)
-	for _, g := range guidelines {
+	for _, g := range guidelinesList {
 		guidelineMap[g.ID] = g
 	}
 
@@ -148,10 +160,15 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 		}
 	}
 
+	activeGuidelinesBytes, err := json.Marshal(activeGuidelines)
+	if err != nil {
+		return nil, err
+	}
+
 	return map[string]any{
 		"history":    history,
 		"prompt":     prompt,
-		"guidelines": activeGuidelines,
+		"guidelines": string(activeGuidelinesBytes),
 		"has_tool":   false,
 	}, nil
 }
