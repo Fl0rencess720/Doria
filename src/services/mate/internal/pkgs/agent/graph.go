@@ -41,6 +41,8 @@ type state struct {
 	activeGuidelines       []*Guideline
 	activeGuidelinesString string
 	toolOutput             string
+
+	epoch int
 }
 
 type InputPayload struct {
@@ -310,8 +312,23 @@ func convertObserverOutputLambda(ctx context.Context, input *schema.Message) (ma
 
 func toolCallingDecisionBranch(ctx context.Context, input map[string]any) (endNode string, err error) {
 	hasTool, ok := input["has_tool"].(bool)
+
 	if !ok || !hasTool {
 		input["tools_output"] = ""
+
+		epoch := 0
+		if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
+			state.epoch = state.epoch + 1
+			epoch = state.epoch
+			return nil
+		}); err != nil {
+			return compose.END, err
+		}
+
+		if epoch >= 2 {
+			return DoriaPromptTplKey, nil
+		}
+
 		return DoriaPromptTplKey, nil
 	}
 
