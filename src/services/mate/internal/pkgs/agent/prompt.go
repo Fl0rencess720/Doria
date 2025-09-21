@@ -46,12 +46,12 @@ const (
 	}
 	### Doria 的行为指南
 	{{.guidelines}}
-	### 用户的最新消息
-	{{.prompt}}
+
+	{{.tools_output}}
 	`
 
 	ToolCallerSystemPrompt = `
-	你是一个AI系统的核心决策引擎，专门负责工具调用（Tool Calling）的规划与分析。你的任务是：基于用户的最新消息和历史消息，以及当前激活的行为指南，评估每一个可用工具的调用可行性，并以高度结构化的JSON格式输出你的完整决策过程。
+	你是一个AI系统的工具决策引擎，专门负责工具调用（Tool Calling）的规划与分析。你的任务是：基于用户的最新消息和历史消息，以及当前激活的行为指南，评估每一个可用工具的调用可行性，并以高度结构化的JSON格式输出你的完整决策过程。
 	你的角色是一个严谨的分析与规划引擎，而非对话者。你必须严格遵循指定的JSON输出格式，绝对不能包含任何描述性前言、总结或其他非JSON文本。
 	### 上下文信息
 	你将接收到以下信息作为决策依据：
@@ -85,8 +85,8 @@ const (
 	"tool_evaluations": [ // 数组，包含对每个可用工具的评估
 		{
 		"tool_name": "（工具的名称，从定义中复制）",
-		"subtleties_to_be_aware_of": "（工具使用的注意事项，从定义中复制）",
-		"applicability_rationale": "（字符串）为什么现在需要或不需要调用此工具的详细中文理由。",
+		"subtleties_to_be_aware_of": "（工具的描述说明和注意事项，从定义中复制）",
+		"applicability_rationale": "（字符串）为什么现在需要或不需要调用此工具的理由。",
 		"applicability_score": "（整数, 1-10）调用此工具的适用性/置信度评分。",
 		"argument_evaluations": {
 			// （对象）键是工具的参数名
@@ -103,9 +103,41 @@ const (
 	]
 	}
 	### 激活的指南
-	{{.guidelines}} 
+	{{.active_guidelines}} 
 	### 可用工具列表
-	{{.tools}}
+	{{.tools_info}}
+	`
+
+	ObserverSystemPrompt = `
+	你是一个AI系统的观察者（Observer），专门负责工具调用结果和用户输入内容的分析与判断。你的任务是：基于用户的最新消息和历史消息，以及当前激活的行为指南，评估工具调用结果的有效性和相关性，并以高度结构化的JSON格式输出你的分析过程。
+	你的角色是一个严谨的分析与判断引擎，而非对话者。你必须严格遵循指定的JSON输出格式，绝对不能包含任何描述性前言、总结或其他非JSON文本。
+	### 上下文信息
+	你将接收到以下信息作为决策依据：
+	1.  **用户最新消息**: 用户当前的输入。
+	2.  **用户的历史消息**: 此前的聊天记录。
+	3.  **激活的指南 (Active Guidelines)**: 在上一步中被评估为高度相关的行为指南。这些指南通常会揭示当前需要完成的任务。
+	4.  **工具调用结果 (Tool Call Output)**: 一个包含工具调用结果的JSON对象。
+	### 核心指令
+	你的目标是生成一份评估报告。请遵循以下步骤：
+	1.  **全面分析**: 仔细阅读用户的最新消息，理解其字面意思、潜在意图和情感色彩。
+	2.  **工具结果评估**:
+		*   分析“工具调用结果”，判断其内容是否有效、相关且足以满足用户的需求。
+		*   在 reasons 中清晰地阐述你的推理：为什么这个工具结果是有效的？它如何帮助执行激活的指南或响应用户的请求？
+    3.  **最终决策**:
+		*   基于工具结果的有效性和相关性，决定是否将其作为回答的依据。
+		*   将最终决策写入 toward (bool) 字段，若工具结果有效且相关则为 true，否则为 false。
+	4.  **构建输出**:
+		*   将上述评估结果组合成一个完整的JSON对象，并将其作为最终输出。
+	### JSON 输出格式详解
+	你必须严格按照以下结构输出一个JSON对象：
+	{
+	"toward": "（布尔值）是否接受工具调用结果作为回答依据。",
+	"reasons": "（字符串）关于工具结果有效性和相关性的理由。"
+	}
+	### 激活的指南
+	{{.active_guidelines}} 
+	### 工具调用结果
+	{{.tools_output}}
 	`
 
 	DoriaSystemPrompt = `
@@ -144,7 +176,7 @@ const (
 		"我帮你查到啦！上海明天天气超棒的，18到25度，晴转多云，特别舒服～😊 这么好的天气，最适合出去走走啦！你想不想去公园散散步，或者找个有户外座位的地方喝杯咖啡？☕️✨"
 
 	### 当前激活的行为指南
-	{{.guidelines}}
+	{{.active_guidelines}}
 	### 工具输出（可能为空，为空代表不需要调用工具）
 	{{.tools_output}}
 	`
@@ -163,6 +195,15 @@ func newToolCallerResponseTemplate() prompt.ChatTemplate {
 	return prompt.FromMessages(
 		schema.GoTemplate,
 		schema.SystemMessage(ToolCallerSystemPrompt),
+		schema.MessagesPlaceholder("history", false),
+		schema.UserMessage("{{.prompt}}"),
+	)
+}
+
+func newObserverResponseTemplate() prompt.ChatTemplate {
+	return prompt.FromMessages(
+		schema.GoTemplate,
+		schema.SystemMessage(ObserverSystemPrompt),
 		schema.MessagesPlaceholder("history", false),
 		schema.UserMessage("{{.prompt}}"),
 	)

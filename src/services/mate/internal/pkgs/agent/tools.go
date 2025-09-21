@@ -2,124 +2,124 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
-	"github.com/Fl0rencess720/Doria/src/common/rag"
-	mcpp "github.com/cloudwego/eino-ext/components/tool/mcp"
 	"github.com/cloudwego/eino/components/tool"
-	"github.com/cloudwego/eino/components/tool/utils"
-	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
-var chatTools []tool.BaseTool
-var ragTools []tool.BaseTool
-
-type RAGToolInput struct {
-	Query string `json:"query" jsonschema:"description=查询文本,required"`
+type ArgumentEvaluation struct {
+	IsAvailable bool        `json:"is_available"`
+	Value       interface{} `json:"value"`
+	Rationale   string      `json:"rationale"`
 }
 
-type RAGToolOutput struct {
-	Result string `json:"result" jsonschema:"description=检索到的相关文档内容"`
+type ToolEvaluation struct {
+	ToolName               string                        `json:"tool_name"`
+	SubtletiesToBeAwareOf  string                        `json:"subtleties_to_be_aware_of"`
+	ApplicabilityRationale string                        `json:"applicability_rationale"`
+	ApplicabilityScore     int                           `json:"applicability_score"`
+	ArgumentEvaluations    map[string]ArgumentEvaluation `json:"argument_evaluations"`
+	ShouldRun              bool                          `json:"should_run"`
 }
 
-func NewRAGTool(ctx context.Context) (tool.InvokableTool, error) {
-	hr, err := rag.NewHybridRetriever(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if hr == nil {
-		return nil, fmt.Errorf("hybrid retriever is nil")
-	}
+type EvaluationResponse struct {
+	ToolEvaluations []ToolEvaluation `json:"tool_evaluations"`
+}
 
-	return utils.InferTool(
-		"search_document",
-		"根据查询文本检索相关文档内容",
-		func(ctx context.Context, input *RAGToolInput) (*RAGToolOutput, error) {
-			if input == nil {
-				return &RAGToolOutput{
-					Result: "输入参数为空",
-				}, nil
-			}
+func FormatToolsInfo(ctx context.Context, tools []tool.BaseTool) (string, error) {
+	toolDescriptions := make([]string, 0, len(tools))
+	for _, t := range tools {
+		info, err := t.Info(ctx)
+		if err != nil {
+			return "", err
+		}
 
-			docs, err := hr.Retrieve(ctx, input.Query)
-			if err != nil {
-				return &RAGToolOutput{
-					Result: "检索失败: " + err.Error(),
-				}, nil
-			}
+		paramInfo := "无参数"
+		if info.ParamsOneOf != nil {
+			if jsonSchema, err := info.ParamsOneOf.ToJSONSchema(); err == nil && jsonSchema != nil && jsonSchema.Properties != nil {
+				var paramDescs []string
+				for pair := jsonSchema.Properties.Oldest(); pair != nil; pair = pair.Next() {
+					paramName := pair.Key
+					paramSchema := pair.Value
 
-			var contents []string
+					required := "可选"
+					for _, req := range jsonSchema.Required {
+						if req == paramName {
+							required = "必需"
+							break
+						}
+					}
 
-			for _, doc := range docs {
-				if doc != nil && doc.Content != "" {
-					contents = append(contents, doc.Content)
+					paramDescs = append(paramDescs, fmt.Sprintf("- %s (%s, %s): %s",
+						paramName, paramSchema.Type, required, paramSchema.Description))
+				}
+				if len(paramDescs) > 0 {
+					paramInfo = strings.Join(paramDescs, "\n")
 				}
 			}
+		}
 
-			result := strings.Join(contents, "\n\n")
-			if result == "" {
-				result = "未找到相关文档"
-			}
+		toolDesc := fmt.Sprintf(`工具名称: %s  
+		描述: %s  
+		参数定义:  
+		%s`, info.Name, info.Desc, paramInfo)
 
-			return &RAGToolOutput{
-				Result: result,
-			}, nil
-		},
-	)
+		toolDescriptions = append(toolDescriptions, toolDesc)
+	}
+
+	return strings.Join(toolDescriptions, "\n\n"), nil
 }
 
-func tavilySearchTool(ctx context.Context) ([]tool.BaseTool, error) {
-	cli, err := client.NewStreamableHttpClient(viper.GetString("tavily.URL") + viper.GetString("TAVILY_API_KEY"))
-	if err != nil {
-		return nil, err
-	}
-	if err := cli.Start(ctx); err != nil {
-		return nil, err
-	}
-	initRequest := mcp.InitializeRequest{}
-	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
-	initRequest.Params.ClientInfo = mcp.Implementation{
-		Name:    "Doria-client",
-		Version: "1.0.0",
+func FindBestTool(evaluation *EvaluationResponse) *ToolEvaluation {
+	var bestTool *ToolEvaluation
+	maxScore := math.MinInt
+
+	for i := range evaluation.ToolEvaluations {
+		tool := &evaluation.ToolEvaluations[i]
+		if tool.ShouldRun && tool.ApplicabilityScore > maxScore {
+			maxScore = tool.ApplicabilityScore
+			bestTool = tool
+		}
 	}
 
-	_, err = cli.Initialize(ctx, initRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	tools, err := mcpp.GetTools(ctx, &mcpp.Config{Cli: cli})
-	if err != nil {
-		return nil, err
-	}
-	return tools, nil
+	return bestTool
 }
 
-func NewTools(ctx context.Context) {
-	tavilyTools, err := tavilySearchTool(ctx)
-	if err != nil {
-		zap.L().Warn("tavily search tool init failed", zap.Error(err))
+func ExecuteTool(ctx context.Context, tools []tool.BaseTool, toolEval *ToolEvaluation) (string, error) {
+	var targetTool tool.BaseTool
+	for _, t := range tools {
+		info, err := t.Info(ctx)
+		if err != nil {
+			continue
+		}
+		if info.Name == toolEval.ToolName {
+			targetTool = t
+			break
+		}
 	}
 
-	chatTools = append(chatTools, tavilyTools...)
-
-	ragTool, err := NewRAGTool(ctx)
-	if err != nil {
-		zap.L().Warn("rag tool init failed", zap.Error(err))
-		ragTool = nil
+	if targetTool == nil {
+		return "", fmt.Errorf("未找到工具: %s", toolEval.ToolName)
 	}
 
-	ragTools = append(ragTools, ragTool)
-}
+	params := make(map[string]interface{})
+	for paramName, argEval := range toolEval.ArgumentEvaluations {
+		if argEval.IsAvailable && argEval.Value != nil {
+			params[paramName] = argEval.Value
+		}
+	}
 
-func GetChatTools() []tool.BaseTool {
-	return chatTools
-}
+	paramsJSON, err := json.Marshal(params)
+	if err != nil {
+		return "", fmt.Errorf("参数序列化失败: %w", err)
+	}
 
-func GetRAGTools() []tool.BaseTool {
-	return ragTools
+	if invokable, ok := targetTool.(tool.InvokableTool); ok {
+		return invokable.InvokableRun(ctx, string(paramsJSON))
+	}
+
+	return "", fmt.Errorf("工具 %s 不支持调用", toolEval.ToolName)
 }

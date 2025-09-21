@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
@@ -46,16 +45,12 @@ func NewAgent(ctx context.Context, hr *rag.HybridRetriever) (*Agent, error) {
 }
 
 func (a *Agent) Chat(ctx context.Context, memory []*models.MateMessage, prompt string) (*schema.Message, error) {
-	guidelines, err := json.Marshal(a.guidelines)
-	if err != nil {
-		return nil, err
-	}
-
 	response, err := a.runnable.Invoke(ctx, map[string]any{
-		"prompt":     prompt,
-		"guidelines": string(guidelines),
-		"memory":     memory,
-		"history":    []*schema.Message{},
+		"prompt":       prompt,
+		"guidelines":   a.guidelines,
+		"memory":       memory,
+		"history":      []*schema.Message{},
+		"tools_output": "",
 	})
 	if err != nil {
 		return nil, err

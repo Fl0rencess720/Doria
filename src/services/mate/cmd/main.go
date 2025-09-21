@@ -9,6 +9,7 @@ import (
 	"github.com/Fl0rencess720/Doria/src/common/profiling"
 	"github.com/Fl0rencess720/Doria/src/common/tracing"
 	"github.com/Fl0rencess720/Doria/src/services/mate/configs"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/pkgs/agent/tools"
 	"github.com/spf13/viper"
 
 	"github.com/cloudwego/eino-ext/callbacks/langfuse"
@@ -19,6 +20,7 @@ import (
 func init() {
 	flag.Parse()
 	conf.Init()
+	tools.Init()
 
 	logging.Init()
 

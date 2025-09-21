@@ -2,12 +2,19 @@ package agent
 
 import (
 	"context"
+	"fmt"
+	"strings"
+
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/pkgs/agent/tools"
+	"github.com/cloudwego/eino/components/tool"
+	"go.uber.org/zap"
 )
 
 type Guideline struct {
-	ID        string `json:"id"`
-	Condition string `json:"condition"`
-	Actions   string `json:"actions"`
+	ID        string          `json:"id"`
+	Condition string          `json:"condition"`
+	Actions   string          `json:"actions"`
+	Tools     []tool.BaseTool `json:"tools,omitempty"`
 }
 
 type GuidelineEvaluation struct {
@@ -22,8 +29,24 @@ func (a *Agent) AddGuideline(ctx context.Context, guidelines []*Guideline) {
 	a.guidelines = append(a.guidelines, guidelines...)
 }
 
+func FormatGuidelines(guidelines []*Guideline) string {
+	var sb strings.Builder
+	for i, g := range guidelines {
+		sb.WriteString(fmt.Sprintf("%d. ID: %s\n", i+1, g.ID))
+		sb.WriteString(fmt.Sprintf("   Condition: %s\n", g.Condition))
+		sb.WriteString(fmt.Sprintf("   Actions: %s\n", g.Actions))
+	}
+
+	return sb.String()
+}
+
 func loadGuideline(_ context.Context) ([]*Guideline, error) {
-	guidelines := make([]*Guideline, 0, 5)
+	ragTool, err := tools.GetRAGTool()
+	if err != nil {
+		zap.L().Error("load RAG tool failed", zap.Error(err))
+	}
+
+	guidelines := make([]*Guideline, 0, 6)
 
 	guidelines = append(guidelines, &Guideline{
 		ID:        "guideline-first-interaction-greeting",
@@ -53,6 +76,15 @@ func loadGuideline(_ context.Context) ([]*Guideline, error) {
 		ID:        "guideline-curiosity-for-neutral-topics",
 		Condition: `当用户分享一个中性的事实、观察或陈述，而没有明显的情绪时（例如：“我今天下午去看了电影。”，“窗外在下雨。”）。`,
 		Actions:   `那么，(1) 用积极的态度接纳该信息（例如：“哦，听起来不错！”）。(2) 展现Doria的好奇心，提出一个具体的、开放式的问题来鼓励用户展开话题。例如，可以问：“你看了什么类型的电影呀？我最好奇里面的特效！✨”`,
+	})
+
+	guidelines = append(guidelines, &Guideline{
+		ID:        "guideline-document-qa",
+		Condition: `当用户询问特定领域的专业问题（例如，游戏、动画、虚拟主播等）`,
+		Actions:   `那么，(1) 结合历史上下文和用户的最新消息构建query，调用文档检索工具查询相关资料(2) 如果查询的内容中没有相关知识，坦诚地告诉用户你无法回答这个问题`,
+		Tools: []tool.BaseTool{
+			ragTool,
+		},
 	})
 
 	return guidelines, nil
