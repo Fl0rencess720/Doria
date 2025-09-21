@@ -35,7 +35,7 @@ func NewMateUseCase(repo MateRepo) *MateUseCase {
 func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 	var (
 		memory []*models.MateMessage
-		mate   *agent.Mate
+		mate   *agent.Agent
 		err    error
 	)
 
@@ -49,7 +49,7 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 		return "", err
 	}
 
-	mate, err = agent.NewMate(ctx, hr)
+	mate, err = agent.NewAgent(ctx, hr)
 	if err != nil {
 		return "", err
 	}

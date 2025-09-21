@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
@@ -9,21 +10,27 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-type Mate struct {
-	runnable compose.Runnable[map[string]any, *schema.Message]
+type Agent struct {
+	runnable   compose.Runnable[map[string]any, *schema.Message]
+	guidelines []*Guideline
 }
 
-func NewMate(ctx context.Context, hr *rag.HybridRetriever) (*Mate, error) {
+func NewAgent(ctx context.Context, hr *rag.HybridRetriever) (*Agent, error) {
 	cm, err := newChatModel(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rcm, err := newRetrievalModel(ctx)
+	jcm, err := newJsonOutputModel(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	g, err := buildChatGraph(ctx, cm, rcm, hr)
+	guidelines, err := loadGuideline(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	g, err := buildChatGraph(ctx, cm, jcm, hr)
 	if err != nil {
 		return nil, err
 	}
@@ -32,15 +39,23 @@ func NewMate(ctx context.Context, hr *rag.HybridRetriever) (*Mate, error) {
 		return nil, err
 	}
 
-	return &Mate{
-		runnable: runnable,
+	return &Agent{
+		runnable:   runnable,
+		guidelines: guidelines,
 	}, nil
 }
 
-func (m *Mate) Chat(ctx context.Context, memory []*models.MateMessage, prompt string) (*schema.Message, error) {
+func (m *Agent) Chat(ctx context.Context, memory []*models.MateMessage, prompt string) (*schema.Message, error) {
+
+	guidelines, err := json.Marshal(m.guidelines)
+	if err != nil {
+		return nil, err
+	}
+
 	response, err := m.runnable.Invoke(ctx, map[string]any{
-		"prompt": prompt,
-		"memory": memory,
+		"prompt":     prompt,
+		"guidelines": string(guidelines),
+		"memory":     memory,
 	})
 	if err != nil {
 		return nil, err
