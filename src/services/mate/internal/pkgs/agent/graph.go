@@ -4,64 +4,64 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
+	"math"
 
 	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
-	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/cloudwego/eino/schema"
-	"go.uber.org/zap"
 )
 
 const (
-	MainChatAgentKey           = "main_chat_agent"
-	IntentDetectorAgentKey     = "intent_detector_agent"
-	IntentPromptTplKey         = "intent_prompt_tpl"
-	ResponsePromptTplKey       = "response_prompt_tpl"
-	RetrieverLambdaKey         = "retriever_lambda"
-	NoRAGDataPreparerLambdaKey = "no_rag_data_preparer_lambda"
+	GuidelineProposerPromptTplKey = "guideline_proposer_prompt"
+	ToolCallerPromptTplKey        = "tool_caller_prompt"
+	ObserverPomptTplKey           = "observer_prompt"
+	DoriaPromptTplKey             = "doria_prompt"
+
+	GuidelineProposerChatModelKey = "guideline_proposer_chat_model"
+	ToolCallerChatModelKey        = "tool_caller_chat_model"
+	ObserverChatModelKey          = "observer_chat_model"
+	DoriaChatModelKey             = "doria_chat_model"
+
+	ActiveGuidelinesLambdaKey     = "active_guidelines_lambda"
+	ToolCallingLambdaKey          = "tool_calling_lambda"
+	ConvertObserverOuputLambdaKey = "convert_observer_output_lambda"
 )
 
 type state struct {
 	history []*schema.Message
 	prompt  string
-	hr      *rag.HybridRetriever
+
+	hr *rag.HybridRetriever
+
+	guidelines       []*Guideline
+	guidelinesString string
+
+	activeGuidelines       []*Guideline
+	activeGuidelinesString string
+	toolOutput             string
+
+	epoch int
 }
 
-type RetrievalAgentOutput struct {
-	Retrieval bool   `json:"retrieval"`
-	Query     string `json:"query"`
+type InputPayload struct {
+	GuidelineEvaluations []*GuidelineEvaluation `json:"guideline_evaluations"`
 }
 
-func buildChatGraph(ctx context.Context, mainCM model.ToolCallingChatModel,
-	intentCM model.ToolCallingChatModel, hr *rag.HybridRetriever) (*compose.Graph[map[string]any, *schema.Message], error) {
+type ObserverOutput struct {
+	Toward bool   `json:"toward"`
+	Reason string `json:"reason"`
+}
+
+func buildChatGraph(_ context.Context, mainCM model.ToolCallingChatModel,
+	jsonCM model.ToolCallingChatModel, hr *rag.HybridRetriever) (*compose.Graph[map[string]any, *schema.Message], error) {
 	compose.RegisterSerializableType[state]("state")
 
-	responseTpl := newResponseTemplate()
-	intentTpl := newIntentTemplate()
-
-	chatTools := GetChatTools()
-
-	intentDetectorAgent, err := react.NewAgent(ctx, &react.AgentConfig{
-		ToolCallingModel: intentCM,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	mainChatAgent, err := react.NewAgent(ctx, &react.AgentConfig{
-		ToolCallingModel: mainCM,
-		ToolsConfig: compose.ToolsNodeConfig{
-			Tools: chatTools,
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	intentDetectorAgentGraph, intentDetectorAgentGraphOpts := intentDetectorAgent.ExportGraph()
-	mainChatAgentGraph, mainChatAgentGraphOpts := mainChatAgent.ExportGraph()
+	guidelineProposerTpl := newGuidelineProposerResponseTemplate()
+	toolCallerTpl := newToolCallerResponseTemplate()
+	observerTpl := newObserverResponseTemplate()
+	doriaTpl := newDoriaResponseTemplate()
 
 	g := compose.NewGraph[map[string]any, *schema.Message](
 		compose.WithGenLocalState(func(ctx context.Context) *state {
@@ -70,119 +70,276 @@ func buildChatGraph(ctx context.Context, mainCM model.ToolCallingChatModel,
 			}
 		}))
 
-	_ = g.AddChatTemplateNode(IntentPromptTplKey, intentTpl, compose.WithStatePreHandler(inputContextLoader))
-	_ = g.AddChatTemplateNode(ResponsePromptTplKey, responseTpl)
+	_ = g.AddChatTemplateNode(GuidelineProposerPromptTplKey, guidelineProposerTpl, compose.WithStatePreHandler(saveInputToState))
+	_ = g.AddChatTemplateNode(ToolCallerPromptTplKey, toolCallerTpl)
+	_ = g.AddChatTemplateNode(ObserverPomptTplKey, observerTpl)
+	_ = g.AddChatTemplateNode(DoriaPromptTplKey, doriaTpl)
 
-	_ = g.AddLambdaNode(NoRAGDataPreparerLambdaKey, compose.InvokableLambda(noRAGDataPreparerLambda))
-	_ = g.AddLambdaNode(RetrieverLambdaKey, compose.InvokableLambda(retrievalLambda))
+	_ = g.AddChatModelNode(GuidelineProposerChatModelKey, jsonCM)
+	_ = g.AddChatModelNode(ToolCallerChatModelKey, jsonCM)
+	_ = g.AddChatModelNode(ObserverChatModelKey, jsonCM)
+	_ = g.AddChatModelNode(DoriaChatModelKey, mainCM)
 
-	_ = g.AddGraphNode(IntentDetectorAgentKey, intentDetectorAgentGraph, intentDetectorAgentGraphOpts...)
-	_ = g.AddGraphNode(MainChatAgentKey, mainChatAgentGraph, mainChatAgentGraphOpts...)
+	_ = g.AddLambdaNode(ActiveGuidelinesLambdaKey, compose.InvokableLambda(activeGuidelinesLambda))
+	_ = g.AddLambdaNode(ToolCallingLambdaKey, compose.InvokableLambda(toolCallingLambda))
+	_ = g.AddLambdaNode(ConvertObserverOuputLambdaKey, compose.InvokableLambda(convertObserverOutputLambda))
 
-	_ = g.AddEdge(compose.START, IntentPromptTplKey)
-	_ = g.AddEdge(IntentPromptTplKey, IntentDetectorAgentKey)
-	_ = g.AddBranch(IntentDetectorAgentKey, compose.NewGraphBranch(ragDecisionBranch, map[string]bool{
-		RetrieverLambdaKey:         true,
-		NoRAGDataPreparerLambdaKey: true,
+	_ = g.AddEdge(compose.START, GuidelineProposerPromptTplKey)
+	_ = g.AddEdge(GuidelineProposerPromptTplKey, GuidelineProposerChatModelKey)
+	_ = g.AddEdge(GuidelineProposerChatModelKey, ActiveGuidelinesLambdaKey)
+
+	_ = g.AddBranch(ActiveGuidelinesLambdaKey, compose.NewGraphBranch(toolCallingDecisionBranch, map[string]bool{
+		ToolCallerPromptTplKey: true,
+		DoriaPromptTplKey:      true,
 	}))
-	_ = g.AddEdge(RetrieverLambdaKey, ResponsePromptTplKey)
-	_ = g.AddEdge(NoRAGDataPreparerLambdaKey, ResponsePromptTplKey)
-	_ = g.AddEdge(ResponsePromptTplKey, MainChatAgentKey)
-	_ = g.AddEdge(MainChatAgentKey, compose.END)
+
+	_ = g.AddEdge(ToolCallerPromptTplKey, ToolCallerChatModelKey)
+	_ = g.AddEdge(ToolCallerChatModelKey, ToolCallingLambdaKey)
+	_ = g.AddEdge(ToolCallingLambdaKey, ObserverPomptTplKey)
+	_ = g.AddEdge(ObserverPomptTplKey, ObserverChatModelKey)
+	_ = g.AddEdge(ObserverChatModelKey, ConvertObserverOuputLambdaKey)
+
+	_ = g.AddBranch(ConvertObserverOuputLambdaKey, compose.NewGraphBranch(observerDecisionBranch, map[string]bool{
+		GuidelineProposerPromptTplKey: true,
+		DoriaPromptTplKey:             true,
+	}))
+
+	_ = g.AddEdge(DoriaPromptTplKey, DoriaChatModelKey)
+	_ = g.AddEdge(DoriaChatModelKey, compose.END)
 
 	return g, nil
 }
 
-func inputContextLoader(ctx context.Context, input map[string]any, state *state) (map[string]any, error) {
-	if historyValue, exists := input["history"]; exists {
-		if history, ok := historyValue.([]*schema.Message); ok {
-			state.history = history
-		}
+func saveInputToState(ctx context.Context, input map[string]any, state *state) (map[string]any, error) {
+	if p, ok := input["prompt"].(string); ok {
+		state.prompt = p
 	}
-	if promptValue, exists := input["prompt"]; exists {
-		if prompt, ok := promptValue.(string); ok {
-			state.prompt = prompt
-		}
+	if h, ok := input["history"].([]*schema.Message); ok {
+		state.history = h
 	}
+	if g, ok := input["guidelines"].([]*Guideline); ok {
+		state.guidelines = g
+		state.guidelinesString = FormatGuidelines(g)
+		input["guidelines"] = state.guidelinesString
+	}
+
 	return input, nil
 }
 
-func ragDecisionBranch(ctx context.Context, input *schema.Message) (endNode string, err error) {
-	retrievalAgebtOutput := &RetrievalAgentOutput{}
+func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
+	var (
+		history    []*schema.Message
+		prompt     string
+		guidelines []*Guideline
+	)
 
-	if err := json.Unmarshal([]byte(input.Content), retrievalAgebtOutput); err != nil {
-		zap.L().Error("failed to unmarshal retrieval agent output", zap.Error(err))
-		return NoRAGDataPreparerLambdaKey, nil
-	}
-
-	if retrievalAgebtOutput.Retrieval {
-		return RetrieverLambdaKey, nil
-	}
-
-	return NoRAGDataPreparerLambdaKey, nil
-}
-
-func noRAGDataPreparerLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
-	var history []*schema.Message
-	var prompt string
 	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
 		history = state.history
 		prompt = state.prompt
+		guidelines = state.guidelines
 		return nil
 	}); err != nil {
 		return nil, err
 	}
+
+	var payload InputPayload
+
+	if err := json.Unmarshal([]byte(input.Content), &payload); err != nil {
+		return nil, err
+	}
+
+	guidelineEvaluations := payload.GuidelineEvaluations
+
+	activeGuidelines := make([]*Guideline, 0)
+	if len(guidelineEvaluations) == 0 {
+		return map[string]any{
+			"history":           history,
+			"prompt":            prompt,
+			"active_guidelines": activeGuidelines,
+			"has_tool":          false,
+		}, nil
+	}
+
+	maxScore := math.MinInt32
+	for _, ge := range guidelineEvaluations {
+		if ge.ConditionApplies && ge.AppliesScore > maxScore {
+			maxScore = ge.AppliesScore
+		}
+	}
+
+	if maxScore == math.MinInt32 {
+		return map[string]any{
+			"history":           history,
+			"prompt":            prompt,
+			"active_guidelines": activeGuidelines,
+			"has_tool":          false,
+		}, nil
+	}
+
+	guidelineMap := make(map[string]*Guideline)
+	for _, g := range guidelines {
+		guidelineMap[g.ID] = g
+	}
+
+	for _, ge := range guidelineEvaluations {
+		if ge.ConditionApplies && ge.AppliesScore == maxScore {
+			if guideline, ok := guidelineMap[ge.GuidelineID]; ok {
+				activeGuidelines = append(activeGuidelines, guideline)
+			}
+		}
+	}
+
+	toolsInfo := ""
+	hasTool := false
+
+	for _, g := range activeGuidelines {
+		if len(g.Tools) > 0 {
+			hasTool = true
+		}
+
+		info, err := FormatToolsInfo(ctx, g.Tools)
+		if err != nil {
+			return nil, err
+		}
+		if info != "" {
+			toolsInfo += info + "\n"
+		}
+	}
+
+	activeGuidelinesString := FormatGuidelines(activeGuidelines)
+
+	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
+		state.activeGuidelines = activeGuidelines
+		state.activeGuidelinesString = activeGuidelinesString
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
 	return map[string]any{
-		"history": history,
-		"prompt":  prompt,
-		"docs":    "",
+		"history":           history,
+		"prompt":            prompt,
+		"active_guidelines": activeGuidelinesString,
+		"tools_info":        toolsInfo,
+		"has_tool":          hasTool,
 	}, nil
 }
 
-func retrievalLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
-	retrievalAgebtOutput := &RetrievalAgentOutput{}
-
-	if err := json.Unmarshal([]byte(input.Content), retrievalAgebtOutput); err != nil {
-		return nil, err
-	}
-
-	query := retrievalAgebtOutput.Query
-
-	var hr *rag.HybridRetriever
-	var history []*schema.Message
-	var prompt string
+func toolCallingLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
+	var (
+		history                []*schema.Message
+		prompt                 string
+		activeGuidelines       []*Guideline
+		activeGuidelinesString string
+	)
 
 	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
-		hr = state.hr
-		history = state.history
+		activeGuidelines = state.activeGuidelines
+		activeGuidelinesString = state.activeGuidelinesString
 		prompt = state.prompt
-
+		history = state.history
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 
-	docs, err := hr.Retrieve(ctx, query)
+	var evaluation EvaluationResponse
+	if err := json.Unmarshal([]byte(input.Content), &evaluation); err != nil {
+		return nil, fmt.Errorf("解析评估结果失败: %w, 原始响应: %s", err, input.Content)
+	}
+
+	toolEvaluation := FindBestTool(&evaluation)
+
+	tools := make([]tool.BaseTool, 0)
+	for _, g := range activeGuidelines {
+		tools = append(tools, g.Tools...)
+	}
+
+	toolsOutput, err := ExecuteTool(ctx, tools, toolEvaluation)
 	if err != nil {
 		return nil, err
 	}
 
-	var contents []string
-
-	for i, doc := range docs {
-		if doc != nil && doc.Content != "" {
-			contents = append(contents, fmt.Sprintf("文档片段 %d:\n%s", i+1, doc.Content))
-		}
-	}
-
-	result := strings.Join(contents, "\n\n")
-	if result == "" {
-		result = "未找到相关文档"
+	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
+		state.toolOutput = toolsOutput
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return map[string]any{
-		"history": history,
-		"prompt":  prompt,
-		"docs":    result,
+		"tools_output":      toolsOutput,
+		"history":           history,
+		"prompt":            prompt,
+		"active_guidelines": activeGuidelinesString,
 	}, nil
+}
+
+func convertObserverOutputLambda(ctx context.Context, input *schema.Message) (map[string]any, error) {
+	var (
+		history                []*schema.Message
+		prompt                 string
+		activeGuidelinesString string
+		guidelinesString       string
+		toolsOutput            string
+	)
+
+	if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
+		activeGuidelinesString = state.activeGuidelinesString
+		guidelinesString = state.guidelinesString
+		prompt = state.prompt
+		history = state.history
+		toolsOutput = state.toolOutput
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	observerOutput := ObserverOutput{}
+	if err := json.Unmarshal([]byte(input.Content), &observerOutput); err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"history":           history,
+		"prompt":            prompt,
+		"active_guidelines": activeGuidelinesString,
+		"guidelines":        guidelinesString,
+		"toward":            observerOutput.Toward,
+		"tools_output":      toolsOutput,
+	}, nil
+}
+
+func toolCallingDecisionBranch(ctx context.Context, input map[string]any) (endNode string, err error) {
+	hasTool, ok := input["has_tool"].(bool)
+
+	if !ok || !hasTool {
+		input["tools_output"] = ""
+
+		epoch := 0
+		if err := compose.ProcessState(ctx, func(ctx context.Context, state *state) error {
+			state.epoch = state.epoch + 1
+			epoch = state.epoch
+			return nil
+		}); err != nil {
+			return compose.END, err
+		}
+
+		if epoch >= 2 {
+			return DoriaPromptTplKey, nil
+		}
+
+		return DoriaPromptTplKey, nil
+	}
+
+	return ToolCallerPromptTplKey, nil
+}
+
+func observerDecisionBranch(ctx context.Context, input map[string]any) (endNode string, err error) {
+	toward, ok := input["toward"].(bool)
+	if !ok || !toward {
+		input["tools_output"] = fmt.Sprintf("为了达成用户的要求，曾经调用了工具，工具的输出结果为：\n%s\n但是并不能解决用户的问题，你需要重新进行对用户的问题进行评估\n", input["tools_output"])
+		return GuidelineProposerPromptTplKey, nil
+	}
+	return DoriaPromptTplKey, nil
 }

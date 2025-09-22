@@ -1,7 +1,7 @@
 server:
   grpc:
     name: Doria.Service.Mate
-    port: 9003
+    port: 9004
     timeout: 900s
 
 database:
@@ -13,8 +13,6 @@ database:
     write_timeout: 10s
     read_timeout: 10s
 
-
-
 trace:
   otel_state: enable
   sample_ration: 1.0
@@ -25,7 +23,18 @@ pyroscope:
 project:
   mode: dev
 
-tts:
-  host_url: wss://tts-api.xfyun.cn/v2/tts
+agent:
+  model:
+    chat: "Qwen/Qwen3-235B-A22B"
+    retrieval: "Qwen/Qwen3-235B-A22B"
+
+rag:
+  milvus:
+    username: root
+  retriever:
+    topK: 5
+    collectionName: structured_ds1
+  embedding:
+    model: doubao-embedding-large-text-250515
   
 
