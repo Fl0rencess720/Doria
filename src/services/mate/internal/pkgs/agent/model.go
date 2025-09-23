@@ -37,7 +37,7 @@ func newJsonOutputModel(ctx context.Context) (model.ToolCallingChatModel, error)
 		APIKey:      viper.GetString("OPENAI_API_KEY"),
 		Model:       viper.GetString("agent.model.retrieval"),
 		MaxTokens:   of(8192),
-		Temperature: of(float32(0.7)),
+		Temperature: of(float32(0.1)),
 		TopP:        of(float32(0.7)),
 		ExtraFields: map[string]any{
 			"enable_thinking": false,
