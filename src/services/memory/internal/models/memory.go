@@ -23,13 +23,25 @@ type Page struct {
 }
 
 type Segment struct {
-	ID       uint   `gorm:"primaryKey"`
-	Overview string `gorm:"type:text"`
-	Pages    []Page `gorm:"foreignKey:SegmentID"`
+	ID        uint      `gorm:"primaryKey"`
+	Overview  string    `gorm:"type:text"`
+	Visit     int       `gorm:"type:int;default:0"`
+	LastVisit time.Time `gorm:"autoUpdateTime"`
+	Pages     []Page    `gorm:"foreignKey:SegmentID"`
 }
 
 type LongTermMemory struct {
 	ID      uint   `gorm:"primaryKey"`
 	UserID  uint   `gorm:"index;not null"`
 	Content string `gorm:"type:text;not null"`
+}
+
+type MateMessage struct {
+	UserID uint `json:"user_id"`
+}
+
+type Correlation struct {
+	Page      *Page   `json:"page"`
+	Score     float32 `json:"score"`
+	SegmentID uint    `json:"segment_id"`
 }

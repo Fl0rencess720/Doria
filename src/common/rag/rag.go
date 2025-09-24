@@ -52,7 +52,7 @@ func newMilvusClient() *milvusclient.Client {
 func NewHybridRetriever(ctx context.Context) (*HybridRetriever, error) {
 	client := newMilvusClient()
 
-	embedder, err := newEmbedder(ctx)
+	embedder, err := NewEmbedder(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func NewHybridRetriever(ctx context.Context) (*HybridRetriever, error) {
 	return hr, nil
 }
 
-func newEmbedder(ctx context.Context) (Embedder, error) {
+func NewEmbedder(ctx context.Context) (Embedder, error) {
 	return newArkEmbedder(ctx)
 }
 

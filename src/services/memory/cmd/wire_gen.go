@@ -18,7 +18,10 @@ import (
 func wireApp() *App {
 	string2 := configs.GetServiceName()
 	kafkaClient := data.NewKafkaClient()
-	memoryRepo := data.NewMemoryRepo(kafkaClient)
+	db := data.NewPostgres()
+	client := data.NewRedis()
+	memoryRetriever := data.NewMemoryRetriever()
+	memoryRepo := data.NewMemoryRepo(kafkaClient, db, client, memoryRetriever)
 	memoryUseCase := biz.NewMemoryUseCase(memoryRepo)
 	memoryService := service.NewMemoryService(string2, memoryUseCase)
 	app := NewApp(memoryService)
