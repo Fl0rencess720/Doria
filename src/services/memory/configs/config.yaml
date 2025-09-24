@@ -13,7 +13,8 @@ database:
     write_timeout: 10s
     read_timeout: 10s
 
-
+memory:
+  stm_capacity: 30
 
 trace:
   otel_state: enable
@@ -24,6 +25,7 @@ pyroscope:
 
 project:
   mode: dev
+
 
 
   
