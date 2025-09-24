@@ -8,6 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
+type QAPair struct {
+	UserInput   string
+	AgentOutput string
+}
+
 var MTMSegmentThreshold int = viper.GetInt("memory.mtm_segment_threshold")
 
 type MemoryRepo interface {
@@ -85,6 +90,32 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 	}
 }
 
-func (uc *MemoryUseCase) RetrieveMemory() {
+func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt string) ([]*QAPair, error) {
+	stmPages, err := uc.repo.GetSTM(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 
+	mtmPages, err := uc.repo.GetMTM(ctx, userID, &models.Page{UserInput: prompt})
+	if err != nil {
+		return nil, err
+	}
+
+	outputQAPairs := make([]*QAPair, len(stmPages)+len(mtmPages))
+
+	for _, page := range stmPages {
+		outputQAPairs = append(outputQAPairs, &QAPair{
+			UserInput:   page.UserInput,
+			AgentOutput: page.AgentOutput,
+		})
+	}
+
+	for _, page := range mtmPages {
+		outputQAPairs = append(outputQAPairs, &QAPair{
+			UserInput:   page.UserInput,
+			AgentOutput: page.AgentOutput,
+		})
+	}
+
+	return outputQAPairs, nil
 }
