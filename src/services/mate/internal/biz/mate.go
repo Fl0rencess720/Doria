@@ -4,17 +4,18 @@ import (
 	"context"
 
 	"github.com/Fl0rencess720/Doria/src/common/rag"
+	memoryapi "github.com/Fl0rencess720/Doria/src/rpc/memory"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/pkgs/agent"
 )
 
 type MateRepo interface {
-	GetMemory(ctx context.Context, UserID uint) ([]*models.MateMessage, error)
-	GetConversationMessages(ctx context.Context, UserID uint) ([]*models.MateMessage, error)
+	SavePage(ctx context.Context, page *models.Page) error
 }
 
 type MateUseCase struct {
-	repo MateRepo
+	repo         MateRepo
+	memoryClient memoryapi.MemoryServiceClient
 }
 
 type MessageResp struct {
@@ -28,8 +29,11 @@ type ChatReq struct {
 	Prompt string
 }
 
-func NewMateUseCase(repo MateRepo) *MateUseCase {
-	return &MateUseCase{repo: repo}
+func NewMateUseCase(repo MateRepo, memoryClient memoryapi.MemoryServiceClient) *MateUseCase {
+	return &MateUseCase{
+		repo:         repo,
+		memoryClient: memoryClient,
+	}
 }
 
 func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {

@@ -36,5 +36,9 @@ rag:
     collectionName: structured_ds1
   embedding:
     model: doubao-embedding-large-text-250515
+
+service:
+  memory:
+    name: Doria.Service.Memory
   
 
