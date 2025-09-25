@@ -21,23 +21,23 @@ func (s *MateService) Chat(ctx context.Context, req *mateapi.ChatRequest) (*mate
 	}, nil
 }
 
-func (s *MateService) GetConversationMessages(ctx context.Context, req *mateapi.GetConversationMessagesRequest) (*mateapi.GetConversationMessagesResponse, error) {
-	messages, err := s.mateUseCase.GetChatHistory(ctx, uint(req.UserId))
-	if err != nil {
-		return nil, err
-	}
+// func (s *MateService) GetConversationMessages(ctx context.Context, req *mateapi.GetConversationMessagesRequest) (*mateapi.GetConversationMessagesResponse, error) {
+// 	messages, err := s.mateUseCase.GetChatHistory(ctx, uint(req.UserId))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	resp := &mateapi.GetConversationMessagesResponse{
-		Messages: make([]*mateapi.Message, len(messages)),
-	}
+// 	resp := &mateapi.GetConversationMessagesResponse{
+// 		Messages: make([]*mateapi.Message, len(messages)),
+// 	}
 
-	for i, msg := range messages {
-		resp.Messages[i] = &mateapi.Message{
-			Role:       msg.Role,
-			Content:    msg.Content.Text,
-			CreateTime: msg.CreatedAt.Unix(),
-		}
-	}
+// 	for i, msg := range messages {
+// 		resp.Messages[i] = &mateapi.Message{
+// 			Role:       msg.Role,
+// 			Content:    msg.Content.Text,
+// 			CreateTime: msg.CreatedAt.Unix(),
+// 		}
+// 	}
 
-	return resp, nil
-}
+// 	return resp, nil
+// }

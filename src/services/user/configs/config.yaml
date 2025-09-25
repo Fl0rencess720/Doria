@@ -6,7 +6,7 @@ server:
 
 database:
   postgres:
-    dsn: host=%s user=admin password=%s dbname=bonfire_lit port=%s sslmode=disable TimeZone=Asia/Shanghai
+    dsn: host=%s user=admin password=%s dbname=doria port=%s sslmode=disable TimeZone=Asia/Shanghai
   redis:
     db: 0
     dial_timeout: 10s

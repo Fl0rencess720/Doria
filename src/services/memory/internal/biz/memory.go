@@ -100,11 +100,13 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt string) ([]*QAPair, error) {
 	stmPages, err := uc.repo.GetSTM(ctx, userID)
 	if err != nil {
+		zap.L().Error("get STM pages failed", zap.Error(err))
 		return nil, err
 	}
 
 	mtmPages, err := uc.repo.GetMTM(ctx, userID, &models.Page{UserInput: prompt})
 	if err != nil {
+		zap.L().Error("get MTM pages failed", zap.Error(err))
 		return nil, err
 	}
 

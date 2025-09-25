@@ -38,14 +38,29 @@ func NewMateUseCase(repo MateRepo, memoryClient memoryapi.MemoryServiceClient) *
 
 func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 	var (
-		memory []*models.MateMessage
-		mate   *agent.Agent
-		err    error
+		mate *agent.Agent
+		err  error
 	)
 
-	memory, err = u.repo.GetMemory(ctx, req.UserID)
+	memory, err := u.memoryClient.GetMemory(ctx, &memoryapi.GetMemoryRequest{UserId: int32(req.UserID), Prompt: req.Prompt})
 	if err != nil {
 		return "", err
+	}
+
+	pages := make([]*models.Page, len(memory.ShortTermMemory)+len(memory.MidTermMemory)+len(memory.LongTermMemory))
+
+	for _, m := range memory.ShortTermMemory {
+		pages = append(pages, &models.Page{
+			UserInput:   m.UserInput,
+			AgentOutput: m.AgentOutput,
+		})
+	}
+
+	for _, m := range memory.MidTermMemory {
+		pages = append(pages, &models.Page{
+			UserInput:   m.UserInput,
+			AgentOutput: m.AgentOutput,
+		})
 	}
 
 	hr, err := rag.NewHybridRetriever(ctx)
@@ -58,7 +73,7 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 		return "", err
 	}
 
-	result, err := mate.Chat(ctx, memory, req.Prompt)
+	result, err := mate.Chat(ctx, pages, req.Prompt)
 	if err != nil {
 		return "", err
 	}
@@ -66,6 +81,12 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 	return result.Content, nil
 }
 
-func (u *MateUseCase) GetChatHistory(ctx context.Context, userID uint) ([]*models.MateMessage, error) {
-	return u.repo.GetConversationMessages(ctx, userID)
-}
+// func (u *MateUseCase) GetChatHistory(ctx context.Context, userID uint) ([]*models.Page, error) {
+// 	messages, err := u.memoryClient.GetMessages(ctx, &memoryapi.GetMessagesRequest{
+// 		UserId: int32(userID),
+// 	})
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// }

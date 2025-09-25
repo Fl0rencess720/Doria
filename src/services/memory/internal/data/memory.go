@@ -98,7 +98,7 @@ func (r *memoryRepo) PopOldestSTMPages(ctx context.Context, userID uint) ([]*mod
 func (r *memoryRepo) GetMostRelevantSegment(ctx context.Context, userID uint, pages []*models.Page) ([]*models.Correlation, error) {
 	mr := r.memoryRetriever
 
-	correlations := make([]*models.Correlation, len(pages))
+	correlations := make([]*models.Correlation, 0, len(pages))
 	for _, page := range pages {
 		query := page.UserInput + "\n" + page.AgentOutput
 		denseQueryVector64, err := mr.embedder.Embed(ctx, query)
@@ -310,7 +310,7 @@ func (r *memoryRepo) GetSTM(ctx context.Context, userID uint) ([]*models.Page, e
 }
 
 func (r *memoryRepo) GetMTM(ctx context.Context, userID uint, page *models.Page) ([]*models.Page, error) {
-	pagesInMTM := []*models.Page{}
+	pagesInMTM := make([]*models.Page, 0)
 
 	correlation, err := r.GetMostRelevantSegment(ctx, userID, []*models.Page{page})
 	if err != nil {

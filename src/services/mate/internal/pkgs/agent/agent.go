@@ -44,12 +44,12 @@ func NewAgent(ctx context.Context, hr *rag.HybridRetriever) (*Agent, error) {
 	}, nil
 }
 
-func (a *Agent) Chat(ctx context.Context, memory []*models.MateMessage, prompt string) (*schema.Message, error) {
+func (a *Agent) Chat(ctx context.Context, pages []*models.Page, prompt string) (*schema.Message, error) {
+	history := pages2History(pages)
 	response, err := a.runnable.Invoke(ctx, map[string]any{
 		"prompt":       prompt,
 		"guidelines":   a.guidelines,
-		"memory":       memory,
-		"history":      []*schema.Message{},
+		"history":      history,
 		"tools_output": "",
 	})
 	if err != nil {
@@ -57,4 +57,20 @@ func (a *Agent) Chat(ctx context.Context, memory []*models.MateMessage, prompt s
 	}
 
 	return response, nil
+}
+
+func pages2History(pages []*models.Page) []*schema.Message {
+	history := make([]*schema.Message, len(pages))
+	for _, page := range pages {
+		history = append(history, &schema.Message{
+			Role:    schema.User,
+			Content: page.UserInput,
+		})
+		history = append(history, &schema.Message{
+			Role:    schema.Assistant,
+			Content: page.AgentOutput,
+		})
+	}
+
+	return history
 }

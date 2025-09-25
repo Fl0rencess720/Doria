@@ -5,6 +5,7 @@ import (
 	"time"
 
 	memoryapi "github.com/Fl0rencess720/Doria/src/rpc/memory"
+	_ "github.com/mbobakov/grpc-consul-resolver"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -18,6 +19,7 @@ func NewMemoryClient() memoryapi.MemoryServiceClient {
 		Timeout:             time.Second,
 		PermitWithoutStream: false,
 	}
+
 	conn, err := grpc.NewClient(
 		fmt.Sprintf("consul://%s/%s?wait=30s", viper.GetString("CONSUL_ADDR"), viper.GetString("services.memory.name")),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

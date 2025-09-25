@@ -33,10 +33,10 @@ func NewPostgres() *gorm.DB {
 	return db
 }
 
-func (r *mateRepo) GetMemory(ctx context.Context, UserID uint) ([]*models.MateMessage, error) {
-	return nil, nil
-}
+func (r *mateRepo) SavePage(ctx context.Context, page *models.Page) error {
+	if err := r.pg.Debug().Create(page).Error; err != nil {
+		return err
+	}
 
-func (r *mateRepo) GetConversationMessages(ctx context.Context, UserID uint) ([]*models.MateMessage, error) {
-	return nil, nil
+	return nil
 }
