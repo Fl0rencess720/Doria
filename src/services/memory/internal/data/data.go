@@ -16,6 +16,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const consumerGroupID = "memory-service-consumer-group"
+
 var ProviderSet = wire.NewSet(NewMemoryRepo, NewKafkaClient,
 	NewPostgres, NewRedis, NewMemoryRetriever)
 
@@ -32,6 +34,7 @@ func NewKafkaClient() *kafkaClient {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: []string{viper.GetString("KAFKA_ADDR")},
 		Topic:   consts.DoriaMemorySignalTopic,
+		GroupID: consumerGroupID,
 	})
 
 	return &kafkaClient{

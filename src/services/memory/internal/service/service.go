@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -32,6 +33,7 @@ type MemoryService struct {
 }
 
 func NewMemoryService(serviceName string, memoryUseCase *biz.MemoryUseCase) *MemoryService {
+	ctx := context.Background()
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", viper.GetInt("server.grpc.port")))
 	if err != nil {
 		panic(err)
@@ -64,6 +66,8 @@ func NewMemoryService(serviceName string, memoryUseCase *biz.MemoryUseCase) *Mem
 		listener:      lis,
 		memoryUseCase: memoryUseCase,
 	}
+
+	go s.memoryUseCase.ProcessMemory(ctx)
 
 	memoryapi.RegisterMemoryServiceServer(server, s)
 

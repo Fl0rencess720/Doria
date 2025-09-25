@@ -42,9 +42,11 @@ type MemoryUseCase struct {
 }
 
 func NewMemoryUseCase(repo MemoryRepo) *MemoryUseCase {
-	return &MemoryUseCase{
+	memoryUseCase := MemoryUseCase{
 		repo: repo,
 	}
+
+	return &memoryUseCase
 }
 
 func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
@@ -100,15 +102,17 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt string) ([]*QAPair, error) {
 	stmPages, err := uc.repo.GetSTM(ctx, userID)
 	if err != nil {
+		zap.L().Error("get STM pages failed", zap.Error(err))
 		return nil, err
 	}
 
 	mtmPages, err := uc.repo.GetMTM(ctx, userID, &models.Page{UserInput: prompt})
 	if err != nil {
+		zap.L().Error("get MTM pages failed", zap.Error(err))
 		return nil, err
 	}
 
-	outputQAPairs := make([]*QAPair, len(stmPages)+len(mtmPages))
+	outputQAPairs := make([]*QAPair, 0, len(stmPages)+len(mtmPages))
 
 	for _, page := range stmPages {
 		outputQAPairs = append(outputQAPairs, &QAPair{
