@@ -1,0 +1,40 @@
+server:
+  grpc:
+    name: Doria.Service.Memory
+    port: 9005
+    timeout: 900s
+
+database:
+  postgres:
+    dsn: host=%s user=admin password=%s dbname=bonfire_lit port=%s sslmode=disable TimeZone=Asia/Shanghai
+  redis:
+    db: 0
+    dial_timeout: 10s
+    write_timeout: 10s
+    read_timeout: 10s
+
+memory:
+  stm_capacity: 30
+  mtm_segment_capacity: 30
+  mtm_segment_threshold: 0.5
+  milvus:
+    username: root
+    page_collection: page_collection
+    segment_collection: segment_collection
+    page_top_k: 5
+    
+
+trace:
+  otel_state: enable
+  sample_ration: 1.0
+
+pyroscope:
+  state: enable
+
+project:
+  mode: dev
+
+
+
+  
+

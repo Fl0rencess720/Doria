@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package memory;
+
+option go_package = "rpc/memory";
+
+service MemoryService {
+    rpc GetMemory(GetMemoryRequest) returns (GetMemoryResponse);
+    rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+    
+}
+
+message ShortMidTermMemory {
+    string user_input = 1;
+    string agent_output = 2;
+}
+
+message LongTermMemory {
+    string context = 1;
+}
+
+
+message GetMemoryRequest {
+    int32 user_id = 1;
+}
+
+message GetMemoryResponse {
+    repeated ShortMidTermMemory short_term_memory = 1;
+    repeated ShortMidTermMemory mid_term_memory = 2;
+    repeated LongTermMemory long_term_memory = 3;
+}
+
+message GetMessagesRequest {
+    int32 user_id = 1;
+}
+
+message GetMessagesResponse {
+    repeated string messages = 1;
+}

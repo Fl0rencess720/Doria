@@ -20,6 +20,7 @@ help:
 	@echo "  user     - Run user service"
 	@echo "  tts     - Run tts service"
 	@echo "  mate     - Run mate service"
+	@echo "  memory     - Run memory service"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make run gateway"
@@ -28,8 +29,9 @@ help:
 	@echo "  make run user"
 	@echo "  make run tts"
 	@echo "  make run mate"
+	@echo "  make run memory"
 
-.PHONY: gateway image
+.PHONY: gateway image chat user tts mate memory
 gateway:
 	@go run src/gateway/cmd/main.go src/gateway/cmd/wire_gen.go --config src/gateway/configs
 
@@ -44,3 +46,5 @@ tts:
 	@go run src/services/tts/cmd/main.go src/services/tts/cmd/wire_gen.go --config src/services/tts/configs
 mate:
 	@go run src/services/mate/cmd/main.go src/services/mate/cmd/wire_gen.go --config src/services/mate/configs
+memory:
+	@go run src/services/memory/cmd/main.go src/services/memory/cmd/wire_gen.go --config src/services/memory/configs
