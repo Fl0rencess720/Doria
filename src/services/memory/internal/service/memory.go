@@ -13,9 +13,9 @@ func (s *MemoryService) GetMemory(ctx context.Context, req *memoryapi.GetMemoryR
 		return nil, err
 	}
 
-	stm := make([]*memoryapi.ShortMidTermMemory, len(memory))
-	mtm := make([]*memoryapi.ShortMidTermMemory, len(memory))
-	ltm := make([]*memoryapi.LongTermMemory, len(memory))
+	stm := make([]*memoryapi.ShortMidTermMemory, 0, len(memory))
+	mtm := make([]*memoryapi.ShortMidTermMemory, 0, len(memory))
+	ltm := make([]*memoryapi.LongTermMemory, 0, len(memory))
 
 	for _, m := range memory {
 		switch m.Status {

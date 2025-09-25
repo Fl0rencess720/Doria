@@ -60,7 +60,7 @@ func (a *Agent) Chat(ctx context.Context, pages []*models.Page, prompt string) (
 }
 
 func pages2History(pages []*models.Page) []*schema.Message {
-	history := make([]*schema.Message, len(pages))
+	history := make([]*schema.Message, 0, len(pages))
 	for _, page := range pages {
 		history = append(history, &schema.Message{
 			Role:    schema.User,

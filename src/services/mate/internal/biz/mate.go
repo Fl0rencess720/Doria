@@ -48,7 +48,7 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 		return "", err
 	}
 
-	pages := make([]*models.Page, len(memory.ShortTermMemory)+len(memory.MidTermMemory)+len(memory.LongTermMemory))
+	pages := make([]*models.Page, 0, len(memory.ShortTermMemory)+len(memory.MidTermMemory)+len(memory.LongTermMemory))
 
 	for _, m := range memory.ShortTermMemory {
 		pages = append(pages, &models.Page{

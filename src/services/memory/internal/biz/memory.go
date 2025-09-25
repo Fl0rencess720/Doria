@@ -58,8 +58,6 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 			continue
 		}
 
-		fmt.Printf("msg.UserID: %v\n", msg.UserID)
-
 		isFull, err := uc.repo.IsSTMFull(ctx, msg.UserID)
 		if err != nil {
 			zap.L().Error("check STM full failed", zap.Error(err))
@@ -109,13 +107,15 @@ func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt
 		return nil, err
 	}
 
+	fmt.Printf("stmPages: %v\n", stmPages)
+
 	mtmPages, err := uc.repo.GetMTM(ctx, userID, &models.Page{UserInput: prompt})
 	if err != nil {
 		zap.L().Error("get MTM pages failed", zap.Error(err))
 		return nil, err
 	}
 
-	outputQAPairs := make([]*QAPair, len(stmPages)+len(mtmPages))
+	outputQAPairs := make([]*QAPair, 0, len(stmPages)+len(mtmPages))
 
 	for _, page := range stmPages {
 		outputQAPairs = append(outputQAPairs, &QAPair{
