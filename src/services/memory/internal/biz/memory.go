@@ -75,6 +75,22 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 				continue
 			}
 
+			if len(correlations) == 0 {
+				for _, page := range oldPages {
+					segmentID, err := uc.repo.CreateSegment(ctx, msg.UserID, []*models.Page{page})
+					if err != nil {
+						zap.L().Error("create segment failed", zap.Error(err))
+						continue
+					}
+
+					if err := uc.repo.AppendPagesToSegment(ctx, segmentID, []*models.Page{page}); err != nil {
+						zap.L().Error("append pages to segment failed", zap.Error(err))
+						continue
+					}
+				}
+				return
+			}
+
 			for _, correlation := range correlations {
 				if correlation.Score > float32(MTMSegmentThreshold) {
 					if err := uc.repo.AppendPagesToSegment(ctx, correlation.SegmentID, []*models.Page{correlation.Page}); err != nil {

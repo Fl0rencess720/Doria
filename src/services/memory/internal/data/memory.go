@@ -20,8 +20,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var STMCapacity int = viper.GetInt("memory.stm_capacity")
-
 type memoryRepo struct {
 	kafkaClient     *kafkaClient
 	pg              *gorm.DB
@@ -58,6 +56,8 @@ func (r *memoryRepo) ReadMessageFromKafka(ctx context.Context) (*models.MateMess
 }
 
 func (r *memoryRepo) IsSTMFull(ctx context.Context, userID uint) (bool, error) {
+	STMCapacity := viper.GetInt("memory.stm_capacity")
+
 	key := getUserSTMKey(userID)
 	count, err := r.redisClient.ZScore(ctx, consts.RedisSTMLengthKey, key).Result()
 	if err != nil {
@@ -85,6 +85,7 @@ func (r *memoryRepo) PushPageToSTM(ctx context.Context, userID uint, page *model
 }
 
 func (r *memoryRepo) PopOldestSTMPages(ctx context.Context, userID uint) ([]*models.Page, error) {
+	STMCapacity := viper.GetInt("memory.stm_capacity")
 	pagesInSTM := []*models.Page{}
 	if err := r.pg.WithContext(ctx).Debug().
 		Where("user_id = ?", userID).
@@ -104,7 +105,7 @@ func (r *memoryRepo) GetMostRelevantSegment(ctx context.Context, userID uint, pa
 
 	correlations := make([]*models.Correlation, 0, len(pages))
 	for _, page := range pages {
-		query := page.UserInput + "\n" + page.AgentOutput
+		query := page.UserInput + "\n\n" + page.AgentOutput
 		denseQueryVector64, err := mr.embedder.Embed(ctx, query)
 		if err != nil {
 			return nil, err
@@ -193,7 +194,7 @@ func (r *memoryRepo) CreateSegment(ctx context.Context, userID uint, pages []*mo
 func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, pages []*models.Page) error {
 	for _, page := range pages {
 		page.SegmentID = segmentID
-		page.Status = "in_ltm"
+		page.Status = "in_mtm"
 		if err := r.pg.WithContext(ctx).Debug().Save(page).Error; err != nil {
 			return err
 		}
@@ -228,10 +229,12 @@ func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, p
 func (r *memoryRepo) GetSegmentPageIDs(ctx context.Context, segmentID uint) ([]uint, error) {
 	pageIDs := []uint{}
 	if err := r.pg.WithContext(ctx).Debug().
+		Model(&models.Page{}).
+		Select("id").
 		Where("segment_id = ?", segmentID).
-		Where("status = ?", "in_ltm").
+		Where("status = ?", "in_mtm").
 		Find(&pageIDs).Error; err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get segment page IDs: %w", err)
 	}
 	return pageIDs, nil
 }
@@ -247,11 +250,16 @@ func (r *memoryRepo) GetTopKRelevantPages(ctx context.Context, pageIDs []uint, q
 
 	filterExpr := "page_id in {page_ids}"
 
+	pageIDsInt64 := make([]int64, len(pageIDs))
+	for i, id := range pageIDs {
+		pageIDsInt64[i] = int64(id)
+	}
+
 	denseReq := milvusclient.NewAnnRequest("dense", 5, entity.FloatVector(embedVector)).
 		WithAnnParam(index.NewIvfAnnParam(5)).
 		WithSearchParam(index.MetricTypeKey, "COSINE").
 		WithFilter(filterExpr).
-		WithTemplateParam("page_ids", pageIDs)
+		WithTemplateParam("page_ids", pageIDsInt64)
 
 	annParam := index.NewSparseAnnParam()
 	annParam.WithDropRatio(0.2)
@@ -259,7 +267,7 @@ func (r *memoryRepo) GetTopKRelevantPages(ctx context.Context, pageIDs []uint, q
 		WithAnnParam(annParam).
 		WithSearchParam(index.MetricTypeKey, "BM25").
 		WithFilter(filterExpr).
-		WithTemplateParam("page_ids", pageIDs)
+		WithTemplateParam("page_ids", pageIDsInt64)
 
 	reranker := milvusclient.NewWeightedReranker([]float64{0.4, 0.6})
 
@@ -282,7 +290,7 @@ func (r *memoryRepo) GetTopKRelevantPages(ctx context.Context, pageIDs []uint, q
 				return nil, err
 			}
 
-			parts := strings.SplitN(text, "\n", 2)
+			parts := strings.SplitN(text, "\n\n\n\n", 2)
 			if len(parts) != 2 {
 				continue
 			}
@@ -293,7 +301,7 @@ func (r *memoryRepo) GetTopKRelevantPages(ctx context.Context, pageIDs []uint, q
 			pages = append(pages, &models.Page{
 				UserInput:   userInput,
 				AgentOutput: agentOutput,
-				Status:      "in_ltm",
+				Status:      "in_mtm",
 			})
 		}
 	}
@@ -337,7 +345,6 @@ func (r *memoryRepo) GetMTM(ctx context.Context, userID uint, page *models.Page)
 		return nil, err
 	}
 
-	pagesInMTM = append(pagesInMTM, page)
 	return pagesInMTM, nil
 }
 
