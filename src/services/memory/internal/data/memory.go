@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Fl0rencess720/Doria/src/consts"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/models"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/agent"
@@ -27,6 +28,10 @@ type memoryRepo struct {
 	memoryRetriever *memoryRetriever
 }
 
+func getUserSTMKey(userID uint) string {
+	return string(rune(userID))
+}
+
 func NewMemoryRepo(kafkaClient *kafkaClient, pg *gorm.DB,
 	redisClient *redis.Client, memoryRetriever *memoryRetriever) biz.MemoryRepo {
 	return &memoryRepo{
@@ -35,10 +40,6 @@ func NewMemoryRepo(kafkaClient *kafkaClient, pg *gorm.DB,
 		redisClient:     redisClient,
 		memoryRetriever: memoryRetriever,
 	}
-}
-
-func getUserSTMKey(userID uint) string {
-	return "stm:" + string(rune(userID))
 }
 
 func (r *memoryRepo) ReadMessageFromKafka(ctx context.Context) (*models.MateMessage, error) {
@@ -57,12 +58,12 @@ func (r *memoryRepo) ReadMessageFromKafka(ctx context.Context) (*models.MateMess
 
 func (r *memoryRepo) IsSTMFull(ctx context.Context, userID uint) (bool, error) {
 	key := getUserSTMKey(userID)
-	count, err := r.redisClient.ZCard(ctx, key).Result()
+	count, err := r.redisClient.ZScore(ctx, consts.RedisSTMLengthKey, key).Result()
 	if err != nil {
 		return false, err
 	}
 
-	return count >= int64(STMCapacity), nil
+	return count >= float64(STMCapacity), nil
 }
 
 func (r *memoryRepo) PushPageToSTM(ctx context.Context, userID uint, page *models.Page) error {
@@ -71,7 +72,7 @@ func (r *memoryRepo) PushPageToSTM(ctx context.Context, userID uint, page *model
 	}
 
 	key := getUserSTMKey(userID)
-	_, err := r.redisClient.ZAdd(ctx, key).Result()
+	_, err := r.redisClient.ZIncrBy(ctx, consts.RedisSTMLengthKey, 1, key).Result()
 	if err != nil {
 		return err
 	}
@@ -190,6 +191,13 @@ func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, p
 		page.SegmentID = segmentID
 		page.Status = "in_ltm"
 		if err := r.pg.WithContext(ctx).Debug().Save(page).Error; err != nil {
+			return err
+		}
+
+		key := getUserSTMKey(page.UserID)
+
+		_, err := r.redisClient.ZIncrBy(ctx, consts.RedisSTMLengthKey, -1, key).Result()
+		if err != nil {
 			return err
 		}
 
