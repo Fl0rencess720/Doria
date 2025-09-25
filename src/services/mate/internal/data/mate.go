@@ -42,7 +42,8 @@ func NewPostgres() *gorm.DB {
 }
 
 func getUserSTMKey(userID uint) string {
-	return string(rune(userID))
+	key := fmt.Sprintf("%d", userID)
+	return key
 }
 
 func (r *mateRepo) SavePage(ctx context.Context, page *models.Page) error {
@@ -50,11 +51,13 @@ func (r *mateRepo) SavePage(ctx context.Context, page *models.Page) error {
 		return err
 	}
 
-	key := getUserSTMKey(page.ID)
+	key := getUserSTMKey(page.UserID)
+	fmt.Printf("key: %v\n", key)
 	_, err := r.redisClient.ZIncrBy(ctx, consts.RedisSTMLengthKey, 1, key).Result()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

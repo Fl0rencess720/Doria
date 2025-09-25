@@ -2,7 +2,6 @@ package biz
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/models"
 	"github.com/spf13/viper"
@@ -106,8 +105,6 @@ func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt
 		zap.L().Error("get STM pages failed", zap.Error(err))
 		return nil, err
 	}
-
-	fmt.Printf("stmPages: %v\n", stmPages)
 
 	mtmPages, err := uc.repo.GetMTM(ctx, userID, &models.Page{UserInput: prompt})
 	if err != nil {

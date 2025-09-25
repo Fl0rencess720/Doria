@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -29,7 +30,7 @@ type memoryRepo struct {
 }
 
 func getUserSTMKey(userID uint) string {
-	return string(rune(userID))
+	return fmt.Sprintf("%d", userID)
 }
 
 func NewMemoryRepo(kafkaClient *kafkaClient, pg *gorm.DB,
