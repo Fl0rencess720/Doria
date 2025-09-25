@@ -74,7 +74,7 @@ func NewMemoryRetriever() *memoryRetriever {
 	return &memoryRetriever{
 		client:   client,
 		embedder: embedder,
-		pageTopK: viper.GetInt("memory.retriever.page_top_k"),
+		pageTopK: viper.GetInt("memory.milvus.page_top_k"),
 	}
 }
 

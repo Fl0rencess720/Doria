@@ -18,9 +18,11 @@ memory:
   mtm_segment_capacity: 30
   mtm_segment_threshold: 0.5
   milvus:
+    username: root
     page_collection: page_collection
     segment_collection: segment_collection
     page_top_k: 5
+    
 
 trace:
   otel_state: enable
