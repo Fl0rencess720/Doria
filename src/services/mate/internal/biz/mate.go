@@ -11,6 +11,7 @@ import (
 
 type MateRepo interface {
 	SavePage(ctx context.Context, page *models.Page) error
+	SendMemorySignal(ctx context.Context, userID uint) error
 }
 
 type MateUseCase struct {
@@ -75,6 +76,19 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 
 	result, err := mate.Chat(ctx, pages, req.Prompt)
 	if err != nil {
+		return "", err
+	}
+
+	if err := u.repo.SavePage(ctx, &models.Page{
+		UserID:      req.UserID,
+		UserInput:   req.Prompt,
+		AgentOutput: result.Content,
+		Status:      "in_stm",
+	}); err != nil {
+		return "", err
+	}
+
+	if err := u.repo.SendMemorySignal(ctx, req.UserID); err != nil {
 		return "", err
 	}
 

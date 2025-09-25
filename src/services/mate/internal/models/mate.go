@@ -23,3 +23,7 @@ type Page struct {
 	Status      string    `gorm:"type:text;not null;check:status IN ('in_stm','in_mtm','invalid')"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"`
 }
+
+type MateMessage struct {
+	UserID uint `json:"user_id"`
+}

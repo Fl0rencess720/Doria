@@ -42,9 +42,11 @@ type MemoryUseCase struct {
 }
 
 func NewMemoryUseCase(repo MemoryRepo) *MemoryUseCase {
-	return &MemoryUseCase{
+	memoryUseCase := MemoryUseCase{
 		repo: repo,
 	}
+
+	return &memoryUseCase
 }
 
 func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {

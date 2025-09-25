@@ -18,7 +18,9 @@ import (
 func wireApp() *App {
 	string2 := configs.GetServiceName()
 	db := data.NewPostgres()
-	mateRepo := data.NewMateRepo(db)
+	kafkaClient := data.NewKafkaClient()
+	client := data.NewRedis()
+	mateRepo := data.NewMateRepo(db, kafkaClient, client)
 	memoryServiceClient := data.NewMemoryClient()
 	mateUseCase := biz.NewMateUseCase(mateRepo, memoryServiceClient)
 	mateService := service.NewMateService(string2, mateUseCase)
