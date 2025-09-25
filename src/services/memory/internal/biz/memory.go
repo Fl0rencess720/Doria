@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/models"
 	"github.com/spf13/viper"
@@ -56,6 +57,8 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 			zap.L().Error("read message from kafka failed", zap.Error(err))
 			continue
 		}
+
+		fmt.Printf("msg.UserID: %v\n", msg.UserID)
 
 		isFull, err := uc.repo.IsSTMFull(ctx, msg.UserID)
 		if err != nil {

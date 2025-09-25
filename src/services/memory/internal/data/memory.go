@@ -60,6 +60,9 @@ func (r *memoryRepo) IsSTMFull(ctx context.Context, userID uint) (bool, error) {
 	key := getUserSTMKey(userID)
 	count, err := r.redisClient.ZScore(ctx, consts.RedisSTMLengthKey, key).Result()
 	if err != nil {
+		if err == redis.Nil {
+			return false, nil
+		}
 		return false, err
 	}
 
