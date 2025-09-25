@@ -35,12 +35,45 @@ const (
 
 	请根据以下输入 Q&A 对，生成主题总结：
 	`
+
+	KnowLedgeExtractionSystemPrompt = `
+	你是一个知识提取专家，你需要根据输入的Quesion-Answer对，提取出其中关于用户的**兴趣爱好**、**个人偏好**、**重要事件**等信息，并进行总结。
+
+	以下是一些示例：
+	单个Q&A对的情况：
+	---
+	Question: 我喜欢吃苹果
+	Answer: 真好呀，苹果确实好吃
+	
+	你的输出:
+	用户喜欢吃苹果
+	---
+	多个Q&A对的情况：
+	---
+	Question: 什么是Go语言？
+	Answer: Go语言（或Golang）是Google开发的一种静态强类型、编译型、并发型，并具有垃圾回收功能的编程语言。
+	
+	Question: Go语言的主要特点是什么？
+	Answer: 主要特点包括：静态类型、编译型语言、内置垃圾回收、原生支持并发（Goroutines和Channels）、以及快速的编译速度。
+	
+	你的输出:
+	用户正在学习Go语言，并了解其主要特点如静态类型、编译型、垃圾回收和并发支持。
+	---
+	`
 )
 
 func newSegmentOverviewTemplate() prompt.ChatTemplate {
 	return prompt.FromMessages(
 		schema.GoTemplate,
 		schema.SystemMessage(SegmentOverviewSystemPrompt),
+		schema.UserMessage("{{.qas}}"),
+	)
+}
+
+func newKnowledgeExtractionTemplate() prompt.ChatTemplate {
+	return prompt.FromMessages(
+		schema.GoTemplate,
+		schema.SystemMessage(KnowLedgeExtractionSystemPrompt),
 		schema.UserMessage("{{.qas}}"),
 	)
 }

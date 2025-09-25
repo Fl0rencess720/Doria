@@ -11,7 +11,8 @@ import (
 )
 
 type Agent struct {
-	runnable compose.Runnable[map[string]any, *schema.Message]
+	segmentOverviewRunnable     compose.Runnable[map[string]any, *schema.Message]
+	knowledgeExtractionRunnable compose.Runnable[map[string]any, *schema.Message]
 }
 
 func NewAgent(ctx context.Context) (*Agent, error) {
@@ -25,13 +26,24 @@ func NewAgent(ctx context.Context) (*Agent, error) {
 		return nil, err
 	}
 
-	runnable, err := sg.Compile(ctx)
+	kg, err := buildKnowledgeExtractionGraph(ctx, cm)
+	if err != nil {
+		return nil, err
+	}
+
+	sr, err := sg.Compile(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	kr, err := kg.Compile(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Agent{
-		runnable: runnable,
+		segmentOverviewRunnable:     sr,
+		knowledgeExtractionRunnable: kr,
 	}, nil
 }
 
@@ -45,7 +57,27 @@ func (a *Agent) GenSegmentOverview(ctx context.Context, qas []*models.Page) (str
 
 	qasString := builder.String()
 
-	response, err := a.runnable.Invoke(ctx, map[string]any{
+	response, err := a.segmentOverviewRunnable.Invoke(ctx, map[string]any{
+		"qas": qasString,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return response.Content, nil
+}
+
+func (a *Agent) GenKnowledgeExtraction(ctx context.Context, qas []*models.Page) (string, error) {
+	var builder strings.Builder
+
+	for _, qa := range qas {
+		qaPair := utils.BuildQAPair(qa.UserInput, qa.AgentOutput)
+		builder.WriteString(qaPair)
+	}
+
+	qasString := builder.String()
+
+	response, err := a.knowledgeExtractionRunnable.Invoke(ctx, map[string]any{
 		"qas": qasString,
 	})
 	if err != nil {

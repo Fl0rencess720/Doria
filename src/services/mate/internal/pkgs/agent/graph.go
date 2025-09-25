@@ -30,8 +30,9 @@ const (
 )
 
 type state struct {
-	history []*schema.Message
-	prompt  string
+	history   []*schema.Message
+	prompt    string
+	knowledge string
 
 	hr *rag.HybridRetriever
 
@@ -117,6 +118,9 @@ func saveInputToState(ctx context.Context, input map[string]any, state *state) (
 	if h, ok := input["history"].([]*schema.Message); ok {
 		state.history = h
 	}
+	if h, ok := input["knowledge"].(string); ok {
+		state.knowledge = h
+	}
 	if g, ok := input["guidelines"].([]*Guideline); ok {
 		state.guidelines = g
 		state.guidelinesString = FormatGuidelines(g)
@@ -130,6 +134,7 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 	var (
 		history    []*schema.Message
 		prompt     string
+		knowledge  string
 		guidelines []*Guideline
 	)
 
@@ -137,6 +142,7 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 		history = state.history
 		prompt = state.prompt
 		guidelines = state.guidelines
+		knowledge = state.knowledge
 		return nil
 	}); err != nil {
 		return nil, err
@@ -155,6 +161,7 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 		return map[string]any{
 			"history":           history,
 			"prompt":            prompt,
+			"knowledge":         knowledge,
 			"active_guidelines": activeGuidelines,
 			"has_tool":          false,
 		}, nil
@@ -171,6 +178,7 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 		return map[string]any{
 			"history":           history,
 			"prompt":            prompt,
+			"knowledge":         knowledge,
 			"active_guidelines": activeGuidelines,
 			"has_tool":          false,
 		}, nil
@@ -219,6 +227,7 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 	return map[string]any{
 		"history":           history,
 		"prompt":            prompt,
+		"knowledge":         knowledge,
 		"active_guidelines": activeGuidelinesString,
 		"tools_info":        toolsInfo,
 		"has_tool":          hasTool,
@@ -279,6 +288,7 @@ func convertObserverOutputLambda(ctx context.Context, input *schema.Message) (ma
 	var (
 		history                []*schema.Message
 		prompt                 string
+		knowledge              string
 		activeGuidelinesString string
 		guidelinesString       string
 		toolsOutput            string
@@ -288,6 +298,7 @@ func convertObserverOutputLambda(ctx context.Context, input *schema.Message) (ma
 		activeGuidelinesString = state.activeGuidelinesString
 		guidelinesString = state.guidelinesString
 		prompt = state.prompt
+		knowledge = state.knowledge
 		history = state.history
 		toolsOutput = state.toolOutput
 		return nil
@@ -303,6 +314,7 @@ func convertObserverOutputLambda(ctx context.Context, input *schema.Message) (ma
 	return map[string]any{
 		"history":           history,
 		"prompt":            prompt,
+		"knowledge":         knowledge,
 		"active_guidelines": activeGuidelinesString,
 		"guidelines":        guidelinesString,
 		"toward":            observerOutput.Toward,

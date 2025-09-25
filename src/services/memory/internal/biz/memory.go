@@ -14,10 +14,11 @@ const (
 	QAStatusInLTM
 )
 
-type QAPair struct {
+type Memory struct {
 	UserInput   string
 	AgentOutput string
-	Status      uint
+	Knowledge   string
+	MemType     uint
 }
 
 var MTMSegmentThreshold int = viper.GetInt("memory.mtm_segment_threshold")
@@ -25,6 +26,7 @@ var MTMSegmentThreshold int = viper.GetInt("memory.mtm_segment_threshold")
 type MemoryRepo interface {
 	ReadMessageFromKafka(ctx context.Context) (*models.MateMessage, error)
 	IsSTMFull(ctx context.Context, userID uint) (bool, error)
+	IsMTMFull(ctx context.Context, userID uint) (bool, error)
 	PushPageToSTM(ctx context.Context, userID uint, page *models.Page) error
 	PopOldestSTMPages(ctx context.Context, userID uint) ([]*models.Page, error)
 	GetMostRelevantSegment(ctx context.Context, userID uint, page []*models.Page) ([]*models.Correlation, error)
@@ -32,9 +34,11 @@ type MemoryRepo interface {
 	GetTopKRelevantPages(ctx context.Context, pageIDs []uint, qa string) ([]*models.Page, error)
 	CreateSegment(ctx context.Context, userID uint, pages []*models.Page) (uint, error)
 	AppendPagesToSegment(ctx context.Context, segmentID uint, pages []*models.Page) error
+	PopMTMToLTM(ctx context.Context, userID uint) error
 
 	GetSTM(ctx context.Context, userID uint) ([]*models.Page, error)
 	GetMTM(ctx context.Context, userID uint, page *models.Page) ([]*models.Page, error)
+	GetLTM(ctx context.Context, userID uint) ([]*models.LongTermMemory, error)
 }
 
 type MemoryUseCase struct {
@@ -88,7 +92,7 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 						continue
 					}
 				}
-				return
+				continue
 			}
 
 			for _, correlation := range correlations {
@@ -111,11 +115,16 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 					}
 				}
 			}
+
+			if err := uc.repo.PopMTMToLTM(ctx, msg.UserID); err != nil {
+				zap.L().Error("pop mtm to ltm failed", zap.Error(err))
+				continue
+			}
 		}
 	}
 }
 
-func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt string) ([]*QAPair, error) {
+func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt string) ([]*Memory, error) {
 	stmPages, err := uc.repo.GetSTM(ctx, userID)
 	if err != nil {
 		zap.L().Error("get STM pages failed", zap.Error(err))
@@ -128,23 +137,36 @@ func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt
 		return nil, err
 	}
 
-	outputQAPairs := make([]*QAPair, 0, len(stmPages)+len(mtmPages))
+	ltm, err := uc.repo.GetLTM(ctx, userID)
+	if err != nil {
+		zap.L().Error("get LTM pages failed", zap.Error(err))
+		return nil, err
+	}
+
+	outputMemory := make([]*Memory, 0, len(stmPages)+len(mtmPages)+len(ltm))
 
 	for _, page := range stmPages {
-		outputQAPairs = append(outputQAPairs, &QAPair{
+		outputMemory = append(outputMemory, &Memory{
 			UserInput:   page.UserInput,
 			AgentOutput: page.AgentOutput,
-			Status:      QAStatusInSTM,
+			MemType:     QAStatusInSTM,
 		})
 	}
 
 	for _, page := range mtmPages {
-		outputQAPairs = append(outputQAPairs, &QAPair{
+		outputMemory = append(outputMemory, &Memory{
 			UserInput:   page.UserInput,
 			AgentOutput: page.AgentOutput,
-			Status:      QAStatusInMTM,
+			MemType:     QAStatusInMTM,
 		})
 	}
 
-	return outputQAPairs, nil
+	for _, l := range ltm {
+		outputMemory = append(outputMemory, &Memory{
+			Knowledge: l.Content,
+			MemType:   QAStatusInLTM,
+		})
+	}
+
+	return outputMemory, nil
 }

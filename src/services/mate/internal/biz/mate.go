@@ -48,7 +48,8 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 		return "", err
 	}
 
-	pages := make([]*models.Page, 0, len(memory.ShortTermMemory)+len(memory.MidTermMemory)+len(memory.LongTermMemory))
+	pages := make([]*models.Page, 0, len(memory.ShortTermMemory)+len(memory.MidTermMemory))
+	knowledges := make([]string, 0, len(memory.LongTermMemory))
 
 	for _, m := range memory.ShortTermMemory {
 		pages = append(pages, &models.Page{
@@ -64,6 +65,10 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 		})
 	}
 
+	for _, m := range memory.LongTermMemory {
+		knowledges = append(knowledges, m.Context)
+	}
+
 	hr, err := rag.NewHybridRetriever(ctx)
 	if err != nil {
 		return "", err
@@ -74,7 +79,10 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 		return "", err
 	}
 
-	result, err := mate.Chat(ctx, pages, req.Prompt)
+	result, err := mate.Chat(ctx, &agent.AgentMemory{
+		QAparis:    pages,
+		Knowledges: knowledges,
+	}, req.Prompt)
 	if err != nil {
 		return "", err
 	}

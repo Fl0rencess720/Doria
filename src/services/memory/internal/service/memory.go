@@ -18,7 +18,7 @@ func (s *MemoryService) GetMemory(ctx context.Context, req *memoryapi.GetMemoryR
 	ltm := make([]*memoryapi.LongTermMemory, 0, len(memory))
 
 	for _, m := range memory {
-		switch m.Status {
+		switch m.MemType {
 		case biz.QAStatusInSTM:
 			stm = append(stm, &memoryapi.ShortMidTermMemory{
 				UserInput:   m.UserInput,
@@ -31,7 +31,7 @@ func (s *MemoryService) GetMemory(ctx context.Context, req *memoryapi.GetMemoryR
 			})
 		case biz.QAStatusInLTM:
 			ltm = append(ltm, &memoryapi.LongTermMemory{
-				Context: m.UserInput + m.AgentOutput,
+				Context: m.Knowledge,
 			})
 		default:
 			continue

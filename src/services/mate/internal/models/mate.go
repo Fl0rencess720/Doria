@@ -11,7 +11,7 @@ type User struct {
 	Phone     *string   `gorm:"type:text;unique"`
 	Password  string    `gorm:"type:text;not null"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
-	Pages     []Page    `gorm:"foreignKey:UserID"`
+	Pages     []*Page   `gorm:"foreignKey:UserID"`
 }
 
 type Page struct {
