@@ -14,7 +14,7 @@ database:
     read_timeout: 10s
 
 memory:
-  stm_capacity: 30
+  stm_capacity: 10
   mtm_segment_capacity: 30
   mtm_segment_threshold: 0.5
   milvus:
@@ -26,7 +26,10 @@ memory:
 rag:
   embedding:
     model: doubao-embedding-large-text-250515
-    
+
+agent:
+  model:
+    chat: "Qwen/Qwen3-235B-A22B"    
 
 trace:
   otel_state: enable
