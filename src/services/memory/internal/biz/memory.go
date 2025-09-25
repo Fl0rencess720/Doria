@@ -8,9 +8,16 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	QAStatusInSTM = iota
+	QAStatusInMTM
+	QAStatusInLTM
+)
+
 type QAPair struct {
 	UserInput   string
 	AgentOutput string
+	Status      uint
 }
 
 var MTMSegmentThreshold int = viper.GetInt("memory.mtm_segment_threshold")
@@ -107,6 +114,7 @@ func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt
 		outputQAPairs = append(outputQAPairs, &QAPair{
 			UserInput:   page.UserInput,
 			AgentOutput: page.AgentOutput,
+			Status:      QAStatusInSTM,
 		})
 	}
 
@@ -114,6 +122,7 @@ func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt
 		outputQAPairs = append(outputQAPairs, &QAPair{
 			UserInput:   page.UserInput,
 			AgentOutput: page.AgentOutput,
+			Status:      QAStatusInMTM,
 		})
 	}
 

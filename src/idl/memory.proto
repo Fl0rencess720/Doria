@@ -7,7 +7,6 @@ option go_package = "rpc/memory";
 service MemoryService {
     rpc GetMemory(GetMemoryRequest) returns (GetMemoryResponse);
     rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
-    
 }
 
 message ShortMidTermMemory {
@@ -22,6 +21,7 @@ message LongTermMemory {
 
 message GetMemoryRequest {
     int32 user_id = 1;
+    string prompt = 2;
 }
 
 message GetMemoryResponse {
