@@ -3,13 +3,14 @@ package models
 import "time"
 
 type User struct {
-	ID        uint      `gorm:"primaryKey"`
-	Username  string    `gorm:"type:text;unique;not null"`
-	Status    string    `gorm:"type:text;not null;check:status IN ('user','visitor')"`
-	Phone     *string   `gorm:"type:text;unique"`
-	Password  string    `gorm:"type:text;not null"`
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	Pages     []*Page   `gorm:"foreignKey:UserID"`
+	ID        uint       `gorm:"primaryKey"`
+	Username  string     `gorm:"type:text;unique;not null"`
+	Status    string     `gorm:"type:text;not null;check:status IN ('user','visitor')"`
+	Phone     *string    `gorm:"type:text;unique"`
+	Password  string     `gorm:"type:text;not null"`
+	CreatedAt time.Time  `gorm:"autoCreateTime"`
+	Pages     []*Page    `gorm:"foreignKey:UserID"`
+	Segments  []*Segment `gorm:"foreignKey:UserID"`
 }
 
 type Page struct {
@@ -24,6 +25,7 @@ type Page struct {
 
 type Segment struct {
 	ID        uint      `gorm:"primaryKey"`
+	UserID    uint      `gorm:"index;not null"`
 	Overview  string    `gorm:"type:text"`
 	Visit     int       `gorm:"type:int;default:0"`
 	LastVisit time.Time `gorm:"autoUpdateTime"`

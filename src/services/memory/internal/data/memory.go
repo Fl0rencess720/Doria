@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/Fl0rencess720/Doria/src/consts"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/biz"
@@ -21,7 +20,7 @@ import (
 )
 
 const (
-	H_PROFILE_UPDATE_THRESHOLD = 5.0
+	H_PROFILE_UPDATE_THRESHOLD = 15.0
 )
 
 type memoryRepo struct {
@@ -118,6 +117,10 @@ func (r *memoryRepo) PopOldestSTMPages(ctx context.Context, userID uint) ([]*mod
 		return nil, err
 	}
 
+	if len(pagesInSTM) <= STMCapacity {
+		return []*models.Page{}, nil
+	}
+
 	pagesToBeProcessed := pagesInSTM[0 : len(pagesInSTM)-STMCapacity]
 
 	return pagesToBeProcessed, nil
@@ -204,7 +207,7 @@ func (r *memoryRepo) CreateSegment(ctx context.Context, userID uint, pages []*mo
 
 	denseVector := convertFloat64ToFloat32([][]float64{overviewEmbedding})[0]
 	_, err = r.memoryRetriever.client.Insert(ctx, milvusclient.NewColumnBasedInsertOption(viper.GetString("memory.milvus.segment_collection")).
-		WithInt8Column("segment_id", []int8{int8(segment.ID)}).
+		WithInt64Column("segment_id", []int64{int64(segment.ID)}).
 		WithVarcharColumn("text", []string{overview}).
 		WithFloatVectorColumn("dense", 2048, [][]float32{denseVector}))
 	if err != nil {
@@ -238,7 +241,7 @@ func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, p
 
 		denseVector := convertFloat64ToFloat32([][]float64{pageEmbedding})[0]
 		_, err = r.memoryRetriever.client.Insert(ctx, milvusclient.NewColumnBasedInsertOption(viper.GetString("memory.milvus.page_collection")).
-			WithInt8Column("page_id", []int8{int8(page.ID)}).
+			WithInt64Column("page_id", []int64{int64(page.ID)}).
 			WithVarcharColumn("text", []string{qaString}).
 			WithFloatVectorColumn("dense", 2048, [][]float32{denseVector}))
 		if err != nil {
@@ -335,14 +338,14 @@ func (r *memoryRepo) GetTopKRelevantPages(ctx context.Context, pageIDs []uint, q
 }
 
 func (r *memoryRepo) PopMTMToLTM(ctx context.Context, userID uint) error {
-	isFull, err := r.IsMTMFull(ctx, userID)
-	if err != nil {
-		return err
-	}
+	// isFull, err := r.IsMTMFull(ctx, userID)
+	// if err != nil {
+	// 	return err
+	// }
 
-	if !isFull {
-		return nil
-	}
+	// if !isFull {
+	// 	return nil
+	// }
 
 	agent, err := agent.NewAgent(ctx)
 	if err != nil {
@@ -399,7 +402,6 @@ func (r *memoryRepo) PopMTMToLTM(ctx context.Context, userID uint) error {
 			if err := tx.Debug().Where("id IN (?) AND user_id = ?", segmentIDs, userID).Delete(&models.Segment{}).Error; err != nil {
 				return err
 			}
-
 			return nil
 		})
 		if err != nil {
@@ -407,6 +409,21 @@ func (r *memoryRepo) PopMTMToLTM(ctx context.Context, userID uint) error {
 		}
 	}
 	return nil
+}
+
+func (r *memoryRepo) UpdateSegmentVisit(ctx context.Context, segmentID uint) error {
+	return r.pg.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Debug().
+			Model(&models.Segment{}).
+			Where("id = ?", segmentID).
+			Updates(map[string]interface{}{
+				"visit":      gorm.Expr("visit + 1"),
+				"last_visit": gorm.Expr("NOW()"),
+			}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (r *memoryRepo) GetSTM(ctx context.Context, userID uint) ([]*models.Page, error) {
@@ -445,6 +462,10 @@ func (r *memoryRepo) GetMTM(ctx context.Context, userID uint, page *models.Page)
 		return nil, err
 	}
 
+	if err := r.UpdateSegmentVisit(ctx, segmentID); err != nil {
+		return nil, err
+	}
+
 	return pagesInMTM, nil
 }
 
@@ -462,19 +483,13 @@ func (r *memoryRepo) GetLTM(ctx context.Context, userID uint) ([]*models.LongTer
 
 func convertFloat64ToFloat32(input [][]float64) [][]float32 {
 	result := make([][]float32, len(input))
-	var wg sync.WaitGroup
 
 	for i, row := range input {
-		wg.Add(1)
-		go func(i int, row []float64) {
-			defer wg.Done()
-			result[i] = make([]float32, len(row))
-			for j, val := range row {
-				result[i][j] = float32(val)
-			}
-		}(i, row)
+		result[i] = make([]float32, len(row))
+		for j, val := range row {
+			result[i][j] = float32(val)
+		}
 	}
 
-	wg.Wait()
 	return result
 }

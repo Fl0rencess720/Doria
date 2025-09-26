@@ -21,7 +21,7 @@ type Memory struct {
 	MemType     uint
 }
 
-var MTMSegmentThreshold int = viper.GetInt("memory.mtm_segment_threshold")
+var MTMSegmentThreshold float32 = float32(viper.GetFloat64("memory.mtm_segment_threshold"))
 
 type MemoryRepo interface {
 	ReadMessageFromKafka(ctx context.Context) (*models.MateMessage, error)
@@ -35,7 +35,7 @@ type MemoryRepo interface {
 	CreateSegment(ctx context.Context, userID uint, pages []*models.Page) (uint, error)
 	AppendPagesToSegment(ctx context.Context, segmentID uint, pages []*models.Page) error
 	PopMTMToLTM(ctx context.Context, userID uint) error
-
+	UpdateSegmentVisit(ctx context.Context, segmentID uint) error
 	GetSTM(ctx context.Context, userID uint) ([]*models.Page, error)
 	GetMTM(ctx context.Context, userID uint, page *models.Page) ([]*models.Page, error)
 	GetLTM(ctx context.Context, userID uint) ([]*models.LongTermMemory, error)
@@ -96,7 +96,7 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 			}
 
 			for _, correlation := range correlations {
-				if correlation.Score > float32(MTMSegmentThreshold) {
+				if correlation.Score > MTMSegmentThreshold {
 					if err := uc.repo.AppendPagesToSegment(ctx, correlation.SegmentID, []*models.Page{correlation.Page}); err != nil {
 						zap.L().Error("append pages to segment failed", zap.Error(err))
 						continue
