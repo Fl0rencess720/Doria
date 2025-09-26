@@ -2,8 +2,12 @@ package biz
 
 import (
 	"context"
+	"fmt"
+	"runtime"
+	"time"
 
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/models"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/distlock"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -40,19 +44,140 @@ type MemoryRepo interface {
 }
 
 type MemoryUseCase struct {
-	repo MemoryRepo
+	repo       MemoryRepo
+	distlocker distlock.Locker
 }
 
-func NewMemoryUseCase(repo MemoryRepo) *MemoryUseCase {
+func NewMemoryUseCase(repo MemoryRepo, distlocker distlock.Locker) *MemoryUseCase {
 	memoryUseCase := MemoryUseCase{
-		repo: repo,
+		repo:       repo,
+		distlocker: distlocker,
 	}
 
 	return &memoryUseCase
 }
 
+func getUserMemoryProcessKey(userID uint) string {
+	return fmt.Sprintf("lock:memory_process:%d", userID)
+}
+
 func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
+	concurrency := runtime.NumCPU() / 2
 	var MTMSegmentThreshold float32 = float32(viper.GetFloat64("memory.mtm_segment_threshold"))
+
+	jobChan := make(chan *models.MateMessage, concurrency)
+	ttl := time.Minute * 2
+
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			for {
+				select {
+				case msg := <-jobChan:
+					key := getUserMemoryProcessKey(msg.UserID)
+					lock, err := uc.distlocker.Lock(ctx, key, ttl)
+					if err != nil {
+						zap.L().Error("lock failed", zap.Error(err))
+						continue
+					}
+
+					retryLock := true
+
+					if !lock {
+						retryLock = false
+						maxRetry := 5
+
+						for i := 0; i < maxRetry; i++ {
+							lock, err := uc.distlocker.Lock(ctx, key, ttl)
+							if err != nil {
+								zap.L().Error("lock failed", zap.Error(err))
+								continue
+							}
+							if lock {
+								retryLock = true
+								break
+							}
+
+							time.Sleep(time.Second * 6)
+						}
+					}
+
+					if !retryLock {
+						continue
+					}
+
+					isFull, err := uc.repo.IsSTMFull(ctx, msg.UserID)
+					if err != nil {
+						zap.L().Error("check STM full failed", zap.Error(err))
+						continue
+					}
+
+					if isFull {
+						oldPages, err := uc.repo.PopOldestSTMPages(ctx, msg.UserID)
+						if err != nil {
+							zap.L().Error("pop oldest STM pages failed", zap.Error(err))
+							continue
+						}
+
+						correlations, err := uc.repo.GetMostRelevantSegment(ctx, msg.UserID, oldPages)
+						if err != nil {
+							zap.L().Error("calculate correlations failed", zap.Error(err))
+							continue
+						}
+
+						if len(correlations) == 0 {
+							for _, page := range oldPages {
+								segmentID, err := uc.repo.CreateSegment(ctx, msg.UserID, []*models.Page{page})
+								if err != nil {
+									zap.L().Error("create segment failed", zap.Error(err))
+									continue
+								}
+
+								if err := uc.repo.AppendPagesToSegment(ctx, segmentID, []*models.Page{page}); err != nil {
+									zap.L().Error("append pages to segment failed", zap.Error(err))
+									continue
+								}
+							}
+							continue
+						}
+
+						for _, correlation := range correlations {
+							if correlation.Score > MTMSegmentThreshold {
+								if err := uc.repo.AppendPagesToSegment(ctx, correlation.SegmentID, []*models.Page{correlation.Page}); err != nil {
+									zap.L().Error("append pages to segment failed", zap.Error(err))
+									continue
+								}
+
+							} else {
+								segmentID, err := uc.repo.CreateSegment(ctx, msg.UserID, []*models.Page{correlation.Page})
+								if err != nil {
+									zap.L().Error("create segment failed", zap.Error(err))
+									continue
+								}
+
+								if err := uc.repo.AppendPagesToSegment(ctx, segmentID, []*models.Page{correlation.Page}); err != nil {
+									zap.L().Error("append pages to segment failed", zap.Error(err))
+									continue
+								}
+							}
+						}
+
+						if err := uc.repo.PopMTMToLTM(ctx, msg.UserID); err != nil {
+							zap.L().Error("pop mtm to ltm failed", zap.Error(err))
+							continue
+						}
+					}
+					if err := uc.distlocker.Unlock(ctx, key); err != nil {
+						zap.L().Error("unlock failed", zap.Error(err))
+						return
+					}
+
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+
 	for {
 		msg, err := uc.repo.ReadMessageFromKafka(ctx)
 		if err != nil {
@@ -60,67 +185,9 @@ func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
 			continue
 		}
 
-		isFull, err := uc.repo.IsSTMFull(ctx, msg.UserID)
-		if err != nil {
-			zap.L().Error("check STM full failed", zap.Error(err))
-			continue
-		}
-		if isFull {
-			oldPages, err := uc.repo.PopOldestSTMPages(ctx, msg.UserID)
-			if err != nil {
-				zap.L().Error("pop oldest STM pages failed", zap.Error(err))
-				continue
-			}
-
-			correlations, err := uc.repo.GetMostRelevantSegment(ctx, msg.UserID, oldPages)
-			if err != nil {
-				zap.L().Error("calculate correlations failed", zap.Error(err))
-				continue
-			}
-
-			if len(correlations) == 0 {
-				for _, page := range oldPages {
-					segmentID, err := uc.repo.CreateSegment(ctx, msg.UserID, []*models.Page{page})
-					if err != nil {
-						zap.L().Error("create segment failed", zap.Error(err))
-						continue
-					}
-
-					if err := uc.repo.AppendPagesToSegment(ctx, segmentID, []*models.Page{page}); err != nil {
-						zap.L().Error("append pages to segment failed", zap.Error(err))
-						continue
-					}
-				}
-				continue
-			}
-
-			for _, correlation := range correlations {
-				if correlation.Score > MTMSegmentThreshold {
-					if err := uc.repo.AppendPagesToSegment(ctx, correlation.SegmentID, []*models.Page{correlation.Page}); err != nil {
-						zap.L().Error("append pages to segment failed", zap.Error(err))
-						continue
-					}
-
-				} else {
-					segmentID, err := uc.repo.CreateSegment(ctx, msg.UserID, []*models.Page{correlation.Page})
-					if err != nil {
-						zap.L().Error("create segment failed", zap.Error(err))
-						continue
-					}
-
-					if err := uc.repo.AppendPagesToSegment(ctx, segmentID, []*models.Page{correlation.Page}); err != nil {
-						zap.L().Error("append pages to segment failed", zap.Error(err))
-						continue
-					}
-				}
-			}
-
-			if err := uc.repo.PopMTMToLTM(ctx, msg.UserID); err != nil {
-				zap.L().Error("pop mtm to ltm failed", zap.Error(err))
-				continue
-			}
-		}
+		jobChan <- msg
 	}
+
 }
 
 func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt string) ([]*Memory, error) {
