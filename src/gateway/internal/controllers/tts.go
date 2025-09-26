@@ -26,6 +26,8 @@ func NewTTSUsecase(repo TTSRepo, ttsClient ttsapi.TTSServiceClient) *TTSUsecase 
 }
 
 func (u *TTSUsecase) SynthesizeSpeech(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	text := c.Query("text")
 
 	if text == "" {
@@ -34,7 +36,7 @@ func (u *TTSUsecase) SynthesizeSpeech(c *gin.Context) {
 		return
 	}
 
-	audio, err := u.ttsClient.SynthesizeSpeech(c, &ttsapi.SynthesizeSpeechRequest{
+	audio, err := u.ttsClient.SynthesizeSpeech(ctx, &ttsapi.SynthesizeSpeechRequest{
 		Text: text,
 	})
 	if err != nil {

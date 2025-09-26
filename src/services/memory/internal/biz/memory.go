@@ -21,8 +21,6 @@ type Memory struct {
 	MemType     uint
 }
 
-var MTMSegmentThreshold float32 = float32(viper.GetFloat64("memory.mtm_segment_threshold"))
-
 type MemoryRepo interface {
 	ReadMessageFromKafka(ctx context.Context) (*models.MateMessage, error)
 	IsSTMFull(ctx context.Context, userID uint) (bool, error)
@@ -54,6 +52,7 @@ func NewMemoryUseCase(repo MemoryRepo) *MemoryUseCase {
 }
 
 func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
+	var MTMSegmentThreshold float32 = float32(viper.GetFloat64("memory.mtm_segment_threshold"))
 	for {
 		msg, err := uc.repo.ReadMessageFromKafka(ctx)
 		if err != nil {

@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"context"
-
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/jwtc"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
 	userapi "github.com/Fl0rencess720/Doria/src/rpc/user"
@@ -58,6 +56,8 @@ func NewUserUsecase(repo UserRepo, userClient userapi.UserServiceClient) *UserUs
 }
 
 func (u *UserUsecase) Register(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	req := UserRegisterReq{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		zap.L().Error("request bind error", zap.Error(err))
@@ -65,7 +65,7 @@ func (u *UserUsecase) Register(c *gin.Context) {
 		return
 	}
 
-	resp, err := u.userClient.Register(context.Background(), &userapi.RegisterRequest{
+	resp, err := u.userClient.Register(ctx, &userapi.RegisterRequest{
 		Phone:    req.Phone,
 		Code:     req.Code,
 		Password: req.Password,
@@ -97,6 +97,8 @@ func (u *UserUsecase) Register(c *gin.Context) {
 }
 
 func (u *UserUsecase) Login(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	req := UserLoginReq{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		zap.L().Error("request bind error", zap.Error(err))
@@ -104,7 +106,7 @@ func (u *UserUsecase) Login(c *gin.Context) {
 		return
 	}
 
-	resp, err := u.userClient.Login(context.Background(), &userapi.LoginRequest{
+	resp, err := u.userClient.Login(ctx, &userapi.LoginRequest{
 		Phone:    req.Phone,
 		Password: req.Password,
 	})
@@ -121,7 +123,7 @@ func (u *UserUsecase) Login(c *gin.Context) {
 		return
 	}
 
-	response.SuccessResponse(c, UserRegisterResp{
+	response.SuccessResponse(c, UserLoginResp{
 		UserID:       resp.UserId,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,

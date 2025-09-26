@@ -26,6 +26,8 @@ func NewHTTPServer(imageUseCase *controllers.ImageUsecase,
 	e := gin.New()
 	e.Use(gin.Logger(), gin.Recovery(), ginZap.Ginzap(zap.L(), time.RFC3339, false), ginZap.RecoveryWithZap(zap.L(), false))
 
+	e.Use(middlewares.Trace())
+
 	app := e.Group("/api", middlewares.Cors(), middlewares.Auth())
 	{
 		image.InitApi(app.Group("/image"), imageUseCase)

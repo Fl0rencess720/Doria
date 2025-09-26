@@ -89,7 +89,7 @@ func (r *memoryRepo) IsMTMFull(ctx context.Context, userID uint) (bool, error) {
 		return false, err
 	}
 
-	return count >= float64(MTMCapacity), nil
+	return count > float64(MTMCapacity), nil
 }
 
 func (r *memoryRepo) PushPageToSTM(ctx context.Context, userID uint, page *models.Page) error {
@@ -194,6 +194,7 @@ func (r *memoryRepo) CreateSegment(ctx context.Context, userID uint, pages []*mo
 
 	segment := models.Segment{
 		Overview: overview,
+		UserID:   userID,
 	}
 
 	if err := r.pg.WithContext(ctx).Debug().Create(&segment).Error; err != nil {
@@ -338,77 +339,75 @@ func (r *memoryRepo) GetTopKRelevantPages(ctx context.Context, pageIDs []uint, q
 }
 
 func (r *memoryRepo) PopMTMToLTM(ctx context.Context, userID uint) error {
-	// isFull, err := r.IsMTMFull(ctx, userID)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// if !isFull {
-	// 	return nil
-	// }
-
 	agent, err := agent.NewAgent(ctx)
 	if err != nil {
 		return err
 	}
 
-	segments := []*models.Segment{}
-
-	if err := r.pg.WithContext(ctx).Debug().
-		Where("user_id = ?", userID).
-		Preload("Pages").
-		Find(&segments).Error; err != nil {
-		return err
-	}
-
-	knowledges := make([]string, 0, 32)
-
-	for _, segment := range segments {
-		heat, err := utils.ComputeSegmentHeat(ctx, segment)
-		if err != nil {
+	return r.pg.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		segments := []*models.Segment{}
+		if err := tx.Debug().
+			Where("user_id = ?", userID).
+			Preload("Pages").
+			Find(&segments).Error; err != nil {
 			return err
 		}
 
-		if heat > H_PROFILE_UPDATE_THRESHOLD {
-			knowledge, err := agent.GenKnowledgeExtraction(ctx, segment.Pages)
+		knowledges := make([]string, 0, 32)
+		segmentIDs := make([]uint, 0, len(segments))
+		pageIDs := make([]uint, 0)
+
+		for _, segment := range segments {
+			heat, err := utils.ComputeSegmentHeat(ctx, segment)
 			if err != nil {
 				return err
 			}
 
-			knowledges = append(knowledges, knowledge)
-		}
-	}
+			if heat > H_PROFILE_UPDATE_THRESHOLD {
+				knowledge, err := agent.GenKnowledgeExtraction(ctx, segment.Pages)
+				if err != nil {
+					return err
+				}
 
-	if len(knowledges) > 0 {
-		ltmRecords := make([]models.LongTermMemory, 0, len(knowledges))
-		for _, k := range knowledges {
-			ltmRecords = append(ltmRecords, models.LongTermMemory{
-				UserID:  userID,
-				Content: k,
-			})
+				knowledges = append(knowledges, knowledge)
+				segmentIDs = append(segmentIDs, segment.ID)
+
+				for _, page := range segment.Pages {
+					pageIDs = append(pageIDs, page.ID)
+				}
+			}
 		}
 
-		if err := r.pg.WithContext(ctx).Debug().Create(&ltmRecords).Error; err != nil {
-			return err
-		}
-	}
+		if len(knowledges) > 0 {
+			ltmRecords := make([]models.LongTermMemory, 0, len(knowledges))
+			for _, k := range knowledges {
+				ltmRecords = append(ltmRecords, models.LongTermMemory{
+					UserID:  userID,
+					Content: k,
+				})
+			}
 
-	segmentIDs := make([]uint, len(segments))
-	for i, s := range segments {
-		segmentIDs[i] = s.ID
-	}
-	if len(segmentIDs) > 0 {
-		err = r.pg.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			if err := tx.Debug().Where("id IN (?) AND user_id = ?", segmentIDs, userID).Delete(&models.Segment{}).Error; err != nil {
+			if err := tx.Debug().Create(&ltmRecords).Error; err != nil {
 				return err
 			}
-			return nil
-		})
-		if err != nil {
-			return err
 		}
-	}
-	return nil
+
+		if len(segmentIDs) > 0 {
+			if err := tx.Debug().Where("id IN (?) AND user_id = ?", segmentIDs,
+				userID).Delete(&models.Segment{}).Error; err != nil {
+				return err
+			}
+		}
+
+		if len(pageIDs) > 0 {
+			if err := tx.Debug().Model(&models.Page{}).Where("id IN ?", pageIDs).Update("status",
+				"in_ltm").Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *memoryRepo) UpdateSegmentVisit(ctx context.Context, segmentID uint) error {

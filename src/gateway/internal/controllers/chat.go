@@ -27,6 +27,8 @@ type ChatUseCase struct {
 }
 
 func (u *ChatUseCase) GetConversationMessages(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	conversationID := c.Query("conversation_id")
 	if conversationID == "" {
 		zap.L().Error("conversation_id is required")
@@ -41,7 +43,7 @@ func (u *ChatUseCase) GetConversationMessages(c *gin.Context) {
 		return
 	}
 
-	resp, err := u.chatClient.GetConversationMessages(context.Background(), &chatapi.GetConversationMessagesRequest{
+	resp, err := u.chatClient.GetConversationMessages(ctx, &chatapi.GetConversationMessagesRequest{
 		ConversationId: int32(conversationIDInt),
 	})
 	if err != nil {
