@@ -29,7 +29,7 @@ rag:
 
 agent:
   model:
-    chat: "Qwen/Qwen3-235B-A22B"    
+    chat: "Qwen/Qwen3-Next-80B-A3B-Instruct"    
 
 trace:
   otel_state: enable

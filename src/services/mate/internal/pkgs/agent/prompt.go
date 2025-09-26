@@ -44,6 +44,9 @@ const (
 		}
 	]
 	}
+	### 你已了解的知识
+	{{.knowledge}}
+	
 	### Doria 的行为指南
 	{{.guidelines}}
 

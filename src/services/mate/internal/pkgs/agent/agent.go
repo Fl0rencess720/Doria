@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
@@ -12,6 +13,11 @@ import (
 type Agent struct {
 	runnable   compose.Runnable[map[string]any, *schema.Message]
 	guidelines []*Guideline
+}
+
+type AgentMemory struct {
+	QAparis    []*models.Page
+	Knowledges []string
 }
 
 func NewAgent(ctx context.Context, hr *rag.HybridRetriever) (*Agent, error) {
@@ -44,10 +50,12 @@ func NewAgent(ctx context.Context, hr *rag.HybridRetriever) (*Agent, error) {
 	}, nil
 }
 
-func (a *Agent) Chat(ctx context.Context, pages []*models.Page, prompt string) (*schema.Message, error) {
-	history := pages2History(pages)
+func (a *Agent) Chat(ctx context.Context, memory *AgentMemory, prompt string) (*schema.Message, error) {
+	history := pages2History(memory.QAparis)
+	knowledge := formatKnowledges(memory.Knowledges)
 	response, err := a.runnable.Invoke(ctx, map[string]any{
 		"prompt":       prompt,
+		"knowledge":    knowledge,
 		"guidelines":   a.guidelines,
 		"history":      history,
 		"tools_output": "",
@@ -73,4 +81,16 @@ func pages2History(pages []*models.Page) []*schema.Message {
 	}
 
 	return history
+}
+
+func formatKnowledges(knowledges []string) string {
+	var builder strings.Builder
+	builder.Grow(2048)
+
+	for _, k := range knowledges {
+		builder.WriteString(k)
+		builder.WriteString("\n")
+	}
+
+	return builder.String()
 }

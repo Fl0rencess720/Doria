@@ -8,4 +8,5 @@ var (
 	DoriaMemorySignalTopic = "doria_memory_signal"
 
 	RedisSTMLengthKey = "stm_length"
+	RedisMTMLengthKey = "mtm_length"
 )

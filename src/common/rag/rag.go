@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	arkembedding "github.com/cloudwego/eino-ext/components/embedding/ark"
 	"github.com/cloudwego/eino/components/retriever"
@@ -172,19 +171,13 @@ func (hr *HybridRetriever) LoadMilvus(ctx context.Context) error {
 
 func convertFloat64ToFloat32(input [][]float64) [][]float32 {
 	result := make([][]float32, len(input))
-	var wg sync.WaitGroup
 
 	for i, row := range input {
-		wg.Add(1)
-		go func(i int, row []float64) {
-			defer wg.Done()
-			result[i] = make([]float32, len(row))
-			for j, val := range row {
-				result[i][j] = float32(val)
-			}
-		}(i, row)
+		result[i] = make([]float32, len(row))
+		for j, val := range row {
+			result[i][j] = float32(val)
+		}
 	}
 
-	wg.Wait()
 	return result
 }
