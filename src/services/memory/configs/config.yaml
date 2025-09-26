@@ -21,6 +21,7 @@ memory:
     username: root
     page_collection: page
     segment_collection: segment
+    ltm_collection: ltm
     page_top_k: 5
 
 rag:
