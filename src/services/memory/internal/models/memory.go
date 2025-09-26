@@ -19,7 +19,7 @@ type Page struct {
 	SegmentID   uint      `gorm:"index"`
 	UserInput   string    `gorm:"type:text"`
 	AgentOutput string    `gorm:"type:text"`
-	Status      string    `gorm:"type:text;not null;check:status IN ('in_stm','in_mtm','invalid')"`
+	Status      string    `gorm:"type:text;not null;check:status IN ('in_stm','in_mtm','in_ltm','invalid')"`
 	CreatedAt   time.Time `gorm:"autoCreateTime"`
 }
 

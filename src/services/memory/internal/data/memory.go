@@ -222,6 +222,7 @@ func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, p
 	for _, page := range pages {
 		page.SegmentID = segmentID
 		page.Status = "in_mtm"
+
 		if err := r.pg.WithContext(ctx).Debug().Save(page).Error; err != nil {
 			return err
 		}
