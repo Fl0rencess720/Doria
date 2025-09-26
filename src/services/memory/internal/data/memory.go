@@ -21,6 +21,7 @@ import (
 
 const (
 	H_PROFILE_UPDATE_THRESHOLD = 15.0
+	LTM_SIMILARITY_THRESHOLD   = 0.4
 )
 
 type memoryRepo struct {
@@ -222,6 +223,7 @@ func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, p
 	for _, page := range pages {
 		page.SegmentID = segmentID
 		page.Status = "in_mtm"
+
 		if err := r.pg.WithContext(ctx).Debug().Save(page).Error; err != nil {
 			return err
 		}
@@ -369,6 +371,15 @@ func (r *memoryRepo) PopMTMToLTM(ctx context.Context, userID uint) error {
 					return err
 				}
 
+				should, err := r.shouldContentToLTM(ctx, knowledge)
+				if err != nil {
+					return err
+				}
+
+				if !should {
+					continue
+				}
+
 				knowledges = append(knowledges, knowledge)
 				segmentIDs = append(segmentIDs, segment.ID)
 
@@ -385,6 +396,19 @@ func (r *memoryRepo) PopMTMToLTM(ctx context.Context, userID uint) error {
 					UserID:  userID,
 					Content: k,
 				})
+
+				knowledgeEmbedding, err := r.memoryRetriever.embedder.Embed(ctx, k)
+				if err != nil {
+					return err
+				}
+
+				denseVector := convertFloat64ToFloat32([][]float64{knowledgeEmbedding})[0]
+				_, err = r.memoryRetriever.client.Insert(ctx, milvusclient.NewColumnBasedInsertOption(viper.GetString("memory.milvus.ltm_collection")).
+					WithVarcharColumn("text", []string{k}).
+					WithFloatVectorColumn("dense", 2048, [][]float32{denseVector}))
+				if err != nil {
+					return err
+				}
 			}
 
 			if err := tx.Debug().Create(&ltmRecords).Error; err != nil {
@@ -431,6 +455,52 @@ func (r *memoryRepo) UpdateSegmentVisit(ctx context.Context, segmentID uint) err
 		}
 		return nil
 	})
+}
+
+func (r *memoryRepo) shouldContentToLTM(ctx context.Context, content string) (bool, error) {
+	mr := r.memoryRetriever
+
+	embedVector64, err := mr.embedder.Embed(ctx, content)
+	if err != nil {
+		return false, err
+	}
+	embedVector := convertFloat64ToFloat32([][]float64{embedVector64})[0]
+
+	denseReq := milvusclient.NewAnnRequest("dense", 5, entity.FloatVector(embedVector)).
+		WithAnnParam(index.NewIvfAnnParam(5)).
+		WithSearchParam(index.MetricTypeKey, "COSINE")
+
+	annParam := index.NewSparseAnnParam()
+	annParam.WithDropRatio(0.2)
+	sparseReq := milvusclient.NewAnnRequest("sparse", 5, entity.Text(content)).
+		WithAnnParam(annParam).
+		WithSearchParam(index.MetricTypeKey, "BM25")
+
+	reranker := milvusclient.NewWeightedReranker([]float64{0.4, 0.6})
+
+	resultSets, err := mr.client.HybridSearch(ctx, milvusclient.NewHybridSearchOption(
+		viper.GetString("memory.milvus.ltm_collection"),
+		1,
+		denseReq,
+		sparseReq,
+	).WithReranker(reranker).WithOutputFields("text"))
+	if err != nil {
+		return false, err
+	}
+
+	score := float32(-1)
+
+	for _, resultSet := range resultSets {
+		for i := 0; i < resultSet.Len(); i++ {
+			score = resultSet.Scores[i]
+		}
+	}
+
+	if score == -1 {
+		return true, nil
+	}
+
+	return score <= LTM_SIMILARITY_THRESHOLD, nil
 }
 
 func (r *memoryRepo) GetSTM(ctx context.Context, userID uint) ([]*models.Page, error) {
