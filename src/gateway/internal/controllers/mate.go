@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"context"
-
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/middlewares"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
 	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
@@ -30,6 +28,8 @@ func NewMateUsecase(repo MateRepo, mateClient mateapi.MateServiceClient) *MateUs
 }
 
 func (u *MateUsecase) Chat(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	userID := c.GetInt(string(middlewares.UserIDKey))
 
 	req := &ChatReq{}
@@ -39,7 +39,7 @@ func (u *MateUsecase) Chat(c *gin.Context) {
 		return
 	}
 
-	resp, err := u.mateClient.Chat(context.Background(), &mateapi.ChatRequest{
+	resp, err := u.mateClient.Chat(ctx, &mateapi.ChatRequest{
 		UserId: int32(userID),
 		Prompt: req.Prompt,
 	})

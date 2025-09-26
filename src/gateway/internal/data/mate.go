@@ -7,6 +7,7 @@ import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
 	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -31,6 +32,7 @@ func NewMateClient() mateapi.MateServiceClient {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithKeepaliveParams(kacp),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	)
 	if err != nil {
 		zap.L().Panic("new grpc client failed", zap.Error(err))

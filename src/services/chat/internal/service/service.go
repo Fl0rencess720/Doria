@@ -13,6 +13,7 @@ import (
 	"github.com/Fl0rencess720/Doria/src/services/chat/internal/biz"
 	"github.com/google/wire"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -50,6 +51,7 @@ func NewChatService(serviceName string, chatUseCase *biz.ChatUseCase) *ChatServi
 	server := grpc.NewServer(
 		grpc.KeepaliveEnforcementPolicy(kaep),
 		grpc.KeepaliveParams(kasp),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 
 	registry, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))

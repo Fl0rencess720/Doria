@@ -36,6 +36,8 @@ func NewImageUsecase(repo ImageRepo, imageClient imageapi.ImageServiceClient) *I
 }
 
 func (u *ImageUsecase) GenerateText(c *gin.Context) {
+	ctx := c.Request.Context()
+
 	var req GenerateReq
 
 	if err := c.ShouldBind(&req); err != nil {
@@ -59,7 +61,7 @@ func (u *ImageUsecase) GenerateText(c *gin.Context) {
 		return
 	}
 
-	resp, err := u.imageClient.GenerateTextOfImage(c, &imageapi.GenerateTextRequest{
+	resp, err := u.imageClient.GenerateTextOfImage(ctx, &imageapi.GenerateTextRequest{
 		ImageData: imgBytes,
 		TextStyle: req.TextStyle,
 	})
