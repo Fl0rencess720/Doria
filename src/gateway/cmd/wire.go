@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/wire"
 
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
 	"github.com/Fl0rencess720/Doria/src/gateway/service"
 )
@@ -29,7 +29,7 @@ func wireApp() *App {
 	panic(wire.Build(
 		NewApp,
 		service.ProviderSet,
-		controllers.ProviderSet,
+		biz.ProviderSet,
 		data.ProviderSet,
 	))
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -17,7 +17,7 @@ import (
 type mateRepo struct {
 }
 
-func NewMateRepo() controllers.MateRepo {
+func NewMateRepo() biz.MateRepo {
 	return &mateRepo{}
 }
 

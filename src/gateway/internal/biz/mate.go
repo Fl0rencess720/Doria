@@ -1,4 +1,4 @@
-package controllers
+package biz
 
 import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/middlewares"

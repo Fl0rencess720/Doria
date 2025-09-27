@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/middlewares"
 	"github.com/Fl0rencess720/Doria/src/gateway/service/chat"
 	"github.com/Fl0rencess720/Doria/src/gateway/service/image"
@@ -20,9 +20,9 @@ import (
 
 var ProviderSet = wire.NewSet(NewHTTPServer)
 
-func NewHTTPServer(imageUseCase *controllers.ImageUsecase,
-	chatUseCase *controllers.ChatUseCase, userUseCase *controllers.UserUsecase,
-	ttsUseCase *controllers.TTSUsecase, mateUseCase *controllers.MateUsecase) *http.Server {
+func NewHTTPServer(imageUseCase *biz.ImageUsecase,
+	chatUseCase *biz.ChatUseCase, userUseCase *biz.UserUsecase,
+	ttsUseCase *biz.TTSUsecase, mateUseCase *biz.MateUsecase) *http.Server {
 	e := gin.New()
 	e.Use(gin.Logger(), gin.Recovery(), ginZap.Ginzap(zap.L(), time.RFC3339, false), ginZap.RecoveryWithZap(zap.L(), false))
 

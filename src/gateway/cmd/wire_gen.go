@@ -9,7 +9,7 @@ package main
 import (
 	"net/http"
 
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
 	"github.com/Fl0rencess720/Doria/src/gateway/service"
 )
@@ -19,19 +19,19 @@ import (
 func wireApp() *App {
 	imageRepo := data.NewImageRepo()
 	imageServiceClient := data.NewImageClient()
-	imageUsecase := controllers.NewImageUsecase(imageRepo, imageServiceClient)
+	imageUsecase := biz.NewImageUsecase(imageRepo, imageServiceClient)
 	chatRepo := data.NewChatRepo()
 	chatServiceClient := data.NewChatClient()
-	chatUseCase := controllers.NewChatUseCase(chatRepo, chatServiceClient)
+	chatUseCase := biz.NewChatUseCase(chatRepo, chatServiceClient)
 	userRepo := data.NewUserRepo()
 	userServiceClient := data.NewUserClient()
-	userUsecase := controllers.NewUserUsecase(userRepo, userServiceClient)
+	userUsecase := biz.NewUserUsecase(userRepo, userServiceClient)
 	ttsRepo := data.NewTTSRepo()
 	ttsServiceClient := data.NewTTSClient()
-	ttsUsecase := controllers.NewTTSUsecase(ttsRepo, ttsServiceClient)
+	ttsUsecase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient)
 	mateRepo := data.NewMateRepo()
 	mateServiceClient := data.NewMateClient()
-	mateUsecase := controllers.NewMateUsecase(mateRepo, mateServiceClient)
+	mateUsecase := biz.NewMateUsecase(mateRepo, mateServiceClient)
 	server := service.NewHTTPServer(imageUsecase, chatUseCase, userUsecase, ttsUsecase, mateUsecase)
 	app := NewApp(server)
 	return app

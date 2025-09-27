@@ -1,6 +1,9 @@
-package controllers
+package biz
 
 import (
+	"context"
+
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/models"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/jwtc"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
 	userapi "github.com/Fl0rencess720/Doria/src/rpc/user"
@@ -11,75 +14,31 @@ import (
 type UserRepo interface {
 }
 
-type UserUsecase struct {
+type userUseCase struct {
 	repo       UserRepo
 	userClient userapi.UserServiceClient
 }
 
-type UserRegisterReq struct {
-	Phone    string `json:"phone" binding:"required"`
-	Code     string `json:"code" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
-
-type UserLoginReq struct {
-	Phone    string `json:"phone" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
-
-type UserRefreshReq struct {
-	AccessToken  string `json:"access_token" binding:"required"`
-	RefreshToken string `json:"refresh_token" binding:"required"`
-}
-
-type UserRegisterResp struct {
-	UserID       int32  `json:"user_id"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-}
-
-type UserLoginResp struct {
-	UserID       int32  `json:"user_id"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-}
-
-type UserRefreshResp struct {
-	AccessToken string `json:"access_token"`
-}
-
-func NewUserUsecase(repo UserRepo, userClient userapi.UserServiceClient) *UserUsecase {
-	return &UserUsecase{
+func NewUserUsecase(repo UserRepo, userClient userapi.UserServiceClient) UserUseCase {
+	return userUseCase{
 		repo:       repo,
 		userClient: userClient,
 	}
 }
 
-func (u *UserUsecase) Register(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	req := UserRegisterReq{}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		zap.L().Error("request bind error", zap.Error(err))
-		response.ErrorResponse(c, response.FormError)
-		return
-	}
-
+func (u *userUseCase) Register(ctx context.Context, req *models.UserRegisterReq) (*models.UserRegisterResp, error) {
 	resp, err := u.userClient.Register(ctx, &userapi.RegisterRequest{
 		Phone:    req.Phone,
 		Code:     req.Code,
 		Password: req.Password,
 	})
 	if err != nil {
-		zap.L().Error("register error", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError)
-		return
+		return nil, err
 	}
 
 	if resp.Code != 2000 {
 		zap.L().Error("register error", zap.Error(err))
-		response.ErrorResponse(c, uint(resp.Code))
-		return
+		return nil, err
 	}
 
 	accessToken, refreshToken, err := jwtc.GenToken(int(resp.UserId))
