@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/controllers"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	imageapi "github.com/Fl0rencess720/Doria/src/rpc/image"
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	"github.com/spf13/viper"
@@ -18,7 +18,7 @@ import (
 type ImageRepo struct {
 }
 
-func NewImageRepo() controllers.ImageRepo {
+func NewImageRepo() biz.ImageRepo {
 	return &ImageRepo{}
 }
 
