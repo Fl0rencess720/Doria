@@ -311,23 +311,32 @@ func (r *memoryRepo) GetMTM(ctx context.Context, userID uint, prompt string) ([]
 	return pagesInMTM, nil
 }
 
-func (r *memoryRepo) GetLTMFromCache(ctx context.Context, userID uint) ([]*models.LongTermMemory, error) {
-	ltms := []*models.LongTermMemory{}
-
-	if err := r.redisClient.Get(ctx, getUserLTMKey(userID)).Scan(&ltms); err != nil {
-		if err != redis.Nil {
-			return nil, err
-		}
+func (r *memoryRepo) SaveLTMToCache(ctx context.Context, userID uint, ltmRecords []*models.LongTermMemory) error {
+	jsonData, err := json.Marshal(ltmRecords)
+	if err != nil {
+		return err
 	}
 
-	return ltms, nil
-}
-
-func (r *memoryRepo) SaveLTMToCache(ctx context.Context, userID uint, ltmRecords []*models.LongTermMemory) error {
-	if err := r.redisClient.Set(ctx, getUserLTMKey(userID), ltmRecords, LTM_CACHE_TTL).Err(); err != nil {
+	if err := r.redisClient.Set(ctx, getUserLTMKey(userID), jsonData, LTM_CACHE_TTL).Err(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (r *memoryRepo) GetLTMFromCache(ctx context.Context, userID uint) ([]*models.LongTermMemory, error) {
+	jsonData, err := r.redisClient.Get(ctx, getUserLTMKey(userID)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return []*models.LongTermMemory{}, nil
+		}
+		return nil, err
+	}
+
+	var ltms []*models.LongTermMemory
+	if err := json.Unmarshal([]byte(jsonData), &ltms); err != nil {
+		return nil, err
+	}
+	return ltms, nil
 }
 
 func (r *memoryRepo) DeleteLTMFromCache(ctx context.Context, userID uint) error {
