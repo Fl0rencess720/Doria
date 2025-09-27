@@ -12,7 +12,7 @@ import (
 
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
-	"github.com/Fl0rencess720/Doria/src/gateway/service"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service"
 )
 
 type App struct {

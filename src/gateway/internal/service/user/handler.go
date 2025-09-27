@@ -3,7 +3,6 @@ package user
 import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/models"
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/jwtc"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -19,7 +18,7 @@ func NewUserHandler(userUseCase biz.UserUseCase) *UserHandler {
 	}
 }
 
-func (u *UserHandler) Register(c *gin.Context) {
+func (h *UserHandler) Register(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	req := models.UserRegisterReq{}
@@ -29,87 +28,49 @@ func (u *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	resp, err := u.userClient.Register(ctx, &userapi.RegisterRequest{
-		Phone:    req.Phone,
-		Code:     req.Code,
-		Password: req.Password,
-	})
+	resp, errorCode, err := h.userUseCase.Register(ctx, &req)
 	if err != nil {
-		zap.L().Error("register error", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError)
+		response.ErrorResponse(c, errorCode)
 		return
 	}
 
-	if resp.Code != 2000 {
-		zap.L().Error("register error", zap.Error(err))
-		response.ErrorResponse(c, uint(resp.Code))
-		return
-	}
-
-	accessToken, refreshToken, err := jwtc.GenToken(int(resp.UserId))
-	if err != nil {
-		zap.L().Error("generate token error", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError)
-		return
-	}
-
-	response.SuccessResponse(c, UserRegisterResp{
-		UserID:       resp.UserId,
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	})
+	response.SuccessResponse(c, resp)
 }
 
-func (u *UserUsecase) Login(c *gin.Context) {
+func (h *UserHandler) Login(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	req := UserLoginReq{}
+	req := models.UserLoginReq{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		zap.L().Error("request bind error", zap.Error(err))
 		response.ErrorResponse(c, response.FormError)
 		return
 	}
 
-	resp, err := u.userClient.Login(ctx, &userapi.LoginRequest{
-		Phone:    req.Phone,
-		Password: req.Password,
-	})
+	resp, errorCode, err := h.userUseCase.Login(ctx, &req)
 	if err != nil {
-		zap.L().Error("login error", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError)
+		response.ErrorResponse(c, errorCode)
 		return
 	}
 
-	accessToken, refreshToken, err := jwtc.GenToken(int(resp.UserId))
-	if err != nil {
-		zap.L().Error("generate token error", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError)
-		return
-	}
-
-	response.SuccessResponse(c, UserLoginResp{
-		UserID:       resp.UserId,
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	})
+	response.SuccessResponse(c, resp)
 }
 
-func (u *UserUsecase) Refresh(c *gin.Context) {
-	req := UserRefreshReq{}
+func (h *UserHandler) Refresh(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	req := models.UserRefreshReq{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		zap.L().Error("request bind error", zap.Error(err))
 		response.ErrorResponse(c, response.FormError)
 		return
 	}
 
-	accessToken, err := jwtc.RefreshToken(req.AccessToken, req.RefreshToken)
+	resp, errorCode, err := h.userUseCase.Refresh(ctx, &req)
 	if err != nil {
-		zap.L().Error("refresh token error", zap.Error(err))
-		response.ErrorResponse(c, response.ServerError)
+		response.ErrorResponse(c, errorCode)
 		return
 	}
 
-	response.SuccessResponse(c, UserRefreshResp{
-		AccessToken: accessToken,
-	})
+	response.SuccessResponse(c, resp)
 }

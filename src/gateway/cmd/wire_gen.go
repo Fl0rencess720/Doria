@@ -7,11 +7,14 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
-	"github.com/Fl0rencess720/Doria/src/gateway/service"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/image"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/mate"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/tts"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/user"
+	"net/http"
 )
 
 // Injectors from wire.go:
@@ -19,20 +22,21 @@ import (
 func wireApp() *App {
 	imageRepo := data.NewImageRepo()
 	imageServiceClient := data.NewImageClient()
-	imageUsecase := biz.NewImageUsecase(imageRepo, imageServiceClient)
-	chatRepo := data.NewChatRepo()
-	chatServiceClient := data.NewChatClient()
-	chatUseCase := biz.NewChatUseCase(chatRepo, chatServiceClient)
+	imageUseCase := biz.NewImageUsecase(imageRepo, imageServiceClient)
+	imageHandler := image.NewImageHandler(imageUseCase)
 	userRepo := data.NewUserRepo()
 	userServiceClient := data.NewUserClient()
-	userUsecase := biz.NewUserUsecase(userRepo, userServiceClient)
+	userUseCase := biz.NewUserUsecase(userRepo, userServiceClient)
+	userHandler := user.NewUserHandler(userUseCase)
 	ttsRepo := data.NewTTSRepo()
 	ttsServiceClient := data.NewTTSClient()
-	ttsUsecase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient)
+	ttsUseCase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient)
+	ttsHandler := tts.NewTTSHandler(ttsUseCase)
 	mateRepo := data.NewMateRepo()
 	mateServiceClient := data.NewMateClient()
-	mateUsecase := biz.NewMateUsecase(mateRepo, mateServiceClient)
-	server := service.NewHTTPServer(imageUsecase, chatUseCase, userUsecase, ttsUsecase, mateUsecase)
+	mateUseCase := biz.NewMateUsecase(mateRepo, mateServiceClient)
+	mateHandler := mate.NewMateHandler(mateUseCase)
+	server := service.NewHTTPServer(imageHandler, userHandler, ttsHandler, mateHandler)
 	app := NewApp(server)
 	return app
 }

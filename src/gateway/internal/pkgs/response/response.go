@@ -4,8 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type ErrorCode uint
+
 const (
-	ServerError = iota
+	ServerError ErrorCode = iota
 	FormError
 	AuthError
 	TokenExpired
@@ -16,15 +18,17 @@ const (
 
 	UserNotExistError
 	PasswordError
+
+	NoError
 )
 
-var HttpCode = map[uint]int{
+var HttpCode = map[ErrorCode]int{
 	FormError:   400,
 	ServerError: 500,
 	AuthError:   401,
 }
 
-var Message = map[uint]string{
+var Message = map[ErrorCode]string{
 	ServerError:       "服务端错误",
 	FormError:         "参数错误",
 	AuthError:         "认证失败",
@@ -46,7 +50,7 @@ func SuccessResponse(c *gin.Context, data any) {
 	})
 }
 
-func ErrorResponse(c *gin.Context, code uint, data ...any) {
+func ErrorResponse(c *gin.Context, code ErrorCode, data ...any) {
 	httpStatus, ok := HttpCode[code]
 	if !ok {
 		httpStatus = 403
@@ -62,7 +66,7 @@ func ErrorResponse(c *gin.Context, code uint, data ...any) {
 	})
 }
 
-func AuthErrorResponse(c *gin.Context, code uint, data ...any) {
+func AuthErrorResponse(c *gin.Context, code ErrorCode, data ...any) {
 	httpStatus, ok := HttpCode[code]
 	if !ok {
 		httpStatus = 401

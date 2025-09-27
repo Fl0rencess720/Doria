@@ -1,15 +1,14 @@
 package user
 
 import (
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/gin-gonic/gin"
 )
 
-func InitApi(group *gin.RouterGroup, uu *biz.UserUsecase) {
-	group.POST("/refresh", uu.Refresh)
+func InitApi(group *gin.RouterGroup, userHandler *UserHandler) {
+	group.POST("/refresh", userHandler.Refresh)
 }
 
-func InitNoneAuthApi(group *gin.RouterGroup, uu *biz.UserUsecase) {
-	group.POST("/register", uu.Register)
-	group.POST("/login", uu.Login)
+func InitNoneAuthApi(group *gin.RouterGroup, userHandler *UserHandler) {
+	group.POST("/register", userHandler.Register)
+	group.POST("/login", userHandler.Login)
 }

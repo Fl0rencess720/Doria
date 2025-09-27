@@ -4,13 +4,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/middlewares"
-	"github.com/Fl0rencess720/Doria/src/gateway/service/chat"
-	"github.com/Fl0rencess720/Doria/src/gateway/service/image"
-	"github.com/Fl0rencess720/Doria/src/gateway/service/mate"
-	"github.com/Fl0rencess720/Doria/src/gateway/service/tts"
-	"github.com/Fl0rencess720/Doria/src/gateway/service/user"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/image"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/mate"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/middlewares"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/tts"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/user"
 	ginZap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
@@ -18,11 +16,11 @@ import (
 	"go.uber.org/zap"
 )
 
-var ProviderSet = wire.NewSet(NewHTTPServer)
+var ProviderSet = wire.NewSet(NewHTTPServer, user.NewUserHandler,
+	tts.NewTTSHandler, image.NewImageHandler, mate.NewMateHandler)
 
-func NewHTTPServer(imageUseCase *biz.ImageUsecase,
-	chatUseCase *biz.ChatUseCase, userUseCase *biz.UserUsecase,
-	ttsUseCase *biz.TTSUsecase, mateUseCase *biz.MateUsecase) *http.Server {
+func NewHTTPServer(imageHandler *image.ImageHandler, userHandler *user.UserHandler,
+	ttsHandler *tts.TTSHandler, mateHandler *mate.MateHandler) *http.Server {
 	e := gin.New()
 	e.Use(gin.Logger(), gin.Recovery(), ginZap.Ginzap(zap.L(), time.RFC3339, false), ginZap.RecoveryWithZap(zap.L(), false))
 
@@ -30,16 +28,15 @@ func NewHTTPServer(imageUseCase *biz.ImageUsecase,
 
 	app := e.Group("/api", middlewares.Cors(), middlewares.Auth())
 	{
-		image.InitApi(app.Group("/image"), imageUseCase)
-		chat.InitApi(app.Group("/chat"), chatUseCase)
-		user.InitApi(app.Group("/user"), userUseCase)
-		tts.InitApi(app.Group("/tts"), ttsUseCase)
-		mate.InitApi(app.Group("/mate"), mateUseCase)
+		image.InitApi(app.Group("/image"), imageHandler)
+		user.InitApi(app.Group("/user"), userHandler)
+		tts.InitApi(app.Group("/tts"), ttsHandler)
+		mate.InitApi(app.Group("/mate"), mateHandler)
 	}
 
 	appNoneAuth := e.Group("/api", middlewares.Cors())
 	{
-		user.InitNoneAuthApi(appNoneAuth.Group("/user"), userUseCase)
+		user.InitNoneAuthApi(appNoneAuth.Group("/user"), userHandler)
 	}
 
 	return &http.Server{
