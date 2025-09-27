@@ -3,106 +3,60 @@ package biz
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"runtime"
 	"time"
 
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/models"
-	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/distlock"
-	"github.com/spf13/viper"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/utils"
 	"go.uber.org/zap"
 )
 
 const (
-	QAStatusInSTM = iota
-	QAStatusInMTM
-	QAStatusInLTM
+	H_PROFILE_UPDATE_THRESHOLD = 15.0
+	MTM_SEGMENT_THRESHOLD      = 0.5
 )
 
-const (
-	lockTTL            = 2 * time.Minute
-	lockMaxRetries     = 5
-	lockInitialBackoff = 100 * time.Millisecond
-	lockMaxBackoff     = 6 * time.Second
-)
-
-type Memory struct {
-	UserInput   string
-	AgentOutput string
-	Knowledge   string
-	MemType     uint
-}
-
-type MemoryRepo interface {
-	ReadMessageFromKafka(ctx context.Context) (*models.MateMessage, error)
-	IsSTMFull(ctx context.Context, userID uint) (bool, error)
-	IsMTMFull(ctx context.Context, userID uint) (bool, error)
-	PushPageToSTM(ctx context.Context, userID uint, page *models.Page) error
-	PopOldestSTMPages(ctx context.Context, userID uint) ([]*models.Page, error)
-	GetMostRelevantSegment(ctx context.Context, userID uint, page []*models.Page) ([]*models.Correlation, error)
-	GetSegmentPageIDs(ctx context.Context, segmentID uint) ([]uint, error)
-	GetTopKRelevantPages(ctx context.Context, pageIDs []uint, qa string) ([]*models.Page, error)
-	CreateSegment(ctx context.Context, userID uint, pages []*models.Page) (uint, error)
-	AppendPagesToSegment(ctx context.Context, segmentID uint, pages []*models.Page) error
-	PopMTMToLTM(ctx context.Context, userID uint) error
-	UpdateSegmentVisit(ctx context.Context, segmentID uint) error
-	GetSTM(ctx context.Context, userID uint) ([]*models.Page, error)
-	GetMTM(ctx context.Context, userID uint, page *models.Page) ([]*models.Page, error)
-	GetLTM(ctx context.Context, userID uint) ([]*models.LongTermMemory, error)
-}
-
-type MemoryUseCase struct {
-	repo       MemoryRepo
-	distlocker distlock.Locker
-}
-
-func NewMemoryUseCase(repo MemoryRepo, distlocker distlock.Locker) *MemoryUseCase {
-	memoryUseCase := MemoryUseCase{
-		repo:       repo,
-		distlocker: distlocker,
+func (uc *MemoryUseCase) startMemoryProcessor(ctx context.Context) {
+	concurrency := runtime.NumCPU()
+	if concurrency == 0 {
+		concurrency = 4
 	}
-
-	return &memoryUseCase
-}
-
-func getUserMemoryProcessKey(userID uint) string {
-	return fmt.Sprintf("lock:memory_process:%d", userID)
-}
-
-func (uc *MemoryUseCase) ProcessMemory(ctx context.Context) {
-	concurrency := runtime.NumCPU() / 2
-
 	jobChan := make(chan *models.MateMessage, concurrency)
 
 	for i := 0; i < concurrency; i++ {
-		go func() {
-			uc.worker(ctx, jobChan, lockTTL)
-		}()
+		go uc.memoryProcessWorker(ctx, jobChan)
 	}
 
 	for {
-		msg, err := uc.repo.ReadMessageFromKafka(ctx)
-		if err != nil {
-			zap.L().Error("read message from kafka failed", zap.Error(err))
-			select {
-			case <-time.After(1 * time.Second):
+		select {
+		case <-ctx.Done():
+			zap.L().Info("Memory processor is shutting down.")
+			close(jobChan)
+			return
+		default:
+			msg, err := uc.repo.ReadMessage(ctx)
+			if err != nil {
+				if ctx.Err() != nil {
+					continue
+				}
+				zap.L().Error("Failed to read message from Kafka, retrying in 1s", zap.Error(err))
+				time.Sleep(1 * time.Second)
 				continue
-			case <-ctx.Done():
-				return
 			}
+			jobChan <- msg
 		}
-
-		jobChan <- msg
 	}
-
 }
 
-func (uc *MemoryUseCase) worker(ctx context.Context, jobChan <-chan *models.MateMessage, ttl time.Duration) {
+func (uc *MemoryUseCase) memoryProcessWorker(ctx context.Context, jobChan <-chan *models.MateMessage) {
 	for msg := range jobChan {
-		processCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		processCtx, cancel := context.WithTimeout(ctx, 40*time.Second)
 
-		if err := uc.processSingleMessage(processCtx, msg, ttl); err != nil {
-			zap.L().Error("failed to process message",
+		err := uc.repo.ProcessWithLock(processCtx, msg.UserID, func(lockedCtx context.Context) error {
+			return uc.processMemoryTransition(lockedCtx, msg.UserID)
+		})
+		if err != nil {
+			zap.L().Error("Failed to process memory transition for user",
 				zap.Uint("userID", msg.UserID),
 				zap.Error(err),
 			)
@@ -112,129 +66,118 @@ func (uc *MemoryUseCase) worker(ctx context.Context, jobChan <-chan *models.Mate
 	}
 }
 
-func (uc *MemoryUseCase) processSingleMessage(ctx context.Context, msg *models.MateMessage, ttl time.Duration) error {
-	key := getUserMemoryProcessKey(msg.UserID)
-
-	locked, err := uc.acquireLockWithRetry(ctx, key, ttl)
-	if err != nil {
-		return fmt.Errorf("lock acquisition process failed for key '%s': %w", key, err)
+func (uc *MemoryUseCase) processMemoryTransition(ctx context.Context, userID uint) error {
+	if err := uc.transitionSTMToMTM(ctx, userID); err != nil {
+		return fmt.Errorf("failed during STM to MTM transition: %w", err)
 	}
-
-	if !locked {
-		zap.L().Warn("failed to acquire lock after retries, skipping message",
-			zap.String("key", key),
-			zap.Uint("userID", msg.UserID),
-		)
-		return nil
+	if err := uc.transitionMTMToLTM(ctx, userID); err != nil {
+		return fmt.Errorf("failed during MTM to LTM transition: %w", err)
 	}
-
-	defer func() {
-		if unlockErr := uc.distlocker.Unlock(ctx, key); unlockErr != nil {
-			zap.L().Error("CRITICAL: failed to unlock. Lock will expire by TTL",
-				zap.String("key", key),
-				zap.Error(unlockErr),
-			)
-		}
-	}()
-
-	zap.L().Info("Lock acquired, processing message", zap.String("key", key))
-
-	var MTMSegmentThreshold float32 = float32(viper.GetFloat64("memory.mtm_segment_threshold"))
-	isFull, err := uc.repo.IsSTMFull(ctx, msg.UserID)
-	if err != nil {
-		return fmt.Errorf("checking STM fullness failed: %w", err)
-	}
-
-	if !isFull {
-		zap.L().Info("STM is not full, processing complete", zap.Uint("userID", msg.UserID))
-		return nil
-	}
-
-	oldPages, err := uc.repo.PopOldestSTMPages(ctx, msg.UserID)
-	if err != nil {
-		return fmt.Errorf("popping oldest STM pages failed: %w", err)
-	}
-
-	correlations, err := uc.repo.GetMostRelevantSegment(ctx, msg.UserID, oldPages)
-	if err != nil {
-		return fmt.Errorf("getting most relevant segment failed: %w", err)
-	}
-
-	if len(correlations) == 0 {
-		for _, page := range oldPages {
-			segmentID, err := uc.repo.CreateSegment(ctx, msg.UserID, []*models.Page{page})
-			if err != nil {
-				return fmt.Errorf("creating new segment for page failed: %w", err)
-			}
-
-			if err := uc.repo.AppendPagesToSegment(ctx, segmentID, []*models.Page{page}); err != nil {
-				return fmt.Errorf("appending pages to existing segment failed: %w", err)
-			}
-
-		}
-	} else {
-		for _, correlation := range correlations {
-			if correlation.Score > MTMSegmentThreshold {
-				if err := uc.repo.AppendPagesToSegment(ctx, correlation.SegmentID, []*models.Page{correlation.Page}); err != nil {
-					return fmt.Errorf("appending pages to existing segment failed: %w", err)
-				}
-			} else {
-				segmentID, err := uc.repo.CreateSegment(ctx, msg.UserID, []*models.Page{correlation.Page})
-				if err != nil {
-					return fmt.Errorf("creating new segment for low-score page failed: %w", err)
-				}
-
-				if err := uc.repo.AppendPagesToSegment(ctx, segmentID, []*models.Page{correlation.Page}); err != nil {
-					return fmt.Errorf("appending pages to existing segment failed: %w", err)
-				}
-			}
-		}
-	}
-
-	if err := uc.repo.PopMTMToLTM(ctx, msg.UserID); err != nil {
-		return fmt.Errorf("popping MTM to LTM failed: %w", err)
-	}
-
 	return nil
 }
 
-func (uc *MemoryUseCase) acquireLockWithRetry(ctx context.Context, key string, ttl time.Duration) (bool, error) {
-	backoff := lockInitialBackoff
-	for i := 0; i < lockMaxRetries; i++ {
-		locked, err := uc.distlocker.Lock(ctx, key, ttl)
+func (uc *MemoryUseCase) transitionSTMToMTM(ctx context.Context, userID uint) error {
+	isFull, err := uc.repo.IsSTMFull(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to check if STM is full: %w", err)
+	}
+	if !isFull {
+		zap.L().Info("STM is not full, skipping transition.", zap.Uint("userID", userID))
+		return nil
+	}
+
+	pagesToMove, err := uc.repo.GetSTMPagesToProcess(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get pages from STM to process: %w", err)
+	}
+	if len(pagesToMove) == 0 {
+		return nil
+	}
+
+	for _, page := range pagesToMove {
+		correlation, err := uc.repo.FindMostRelevantSegment(ctx, userID, page)
 		if err != nil {
-			return false, fmt.Errorf("error on lock attempt %d: %w", i+1, err)
-		}
-		if locked {
-			return true, nil
+			zap.L().Warn("Failed to find relevant segment for page", zap.Uint("pageID", page.ID), zap.Error(err))
+			continue
 		}
 
-		if i == lockMaxRetries-1 {
-			break
+		if correlation == nil || correlation.Score < MTM_SEGMENT_THRESHOLD {
+			overview, err := uc.agent.GenSegmentOverview(ctx, []*models.Page{page})
+			if err != nil {
+				return fmt.Errorf("failed to generate segment overview: %w", err)
+			}
+			newSegment := &models.Segment{Overview: overview, UserID: userID}
+			if err := uc.repo.CreateSegment(ctx, newSegment, []*models.Page{page}); err != nil {
+				return fmt.Errorf("failed to create new segment: %w", err)
+			}
+		} else {
+			if err := uc.repo.AppendPagesToSegment(ctx, correlation.SegmentID, []*models.Page{page}); err != nil {
+				return fmt.Errorf("failed to append page to segment %d: %w", correlation.SegmentID, err)
+			}
+		}
+	}
+	return nil
+}
+
+func (uc *MemoryUseCase) transitionMTMToLTM(ctx context.Context, userID uint) error {
+	segments, err := uc.repo.FindHotSegments(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to find hot segments: %w", err)
+	}
+	if len(segments) == 0 {
+		return nil
+	}
+
+	var (
+		ltmRecords         []*models.LongTermMemory
+		segmentIDsToDelete []uint
+		pageIDsToArchive   []uint
+	)
+
+	for _, segment := range segments {
+		heat, err := utils.ComputeSegmentHeat(ctx, segment)
+		if err != nil {
+			zap.L().Error("Failed to compute segment heat", zap.Uint("segmentID", segment.ID), zap.Error(err))
+			continue
+		}
+		if heat <= H_PROFILE_UPDATE_THRESHOLD {
+			continue
 		}
 
-		backoff *= 2
-		if backoff > lockMaxBackoff {
-			backoff = lockMaxBackoff
+		knowledge, err := uc.agent.GenKnowledgeExtraction(ctx, segment.Pages)
+		if err != nil {
+			zap.L().Warn("Failed to extract knowledge from segment", zap.Uint("segmentID", segment.ID), zap.Error(err))
+			continue
 		}
 
-		jitter := time.Duration(rand.Intn(100)) * time.Millisecond
-		waitTime := backoff + jitter
+		isRedundant, err := uc.repo.IsKnowledgeRedundant(ctx, userID, knowledge)
+		if err != nil {
+			zap.L().Warn("Failed to check knowledge redundancy", zap.Uint("segmentID", segment.ID), zap.Error(err))
+			continue
+		}
+		if isRedundant {
+			continue
+		}
 
-		zap.L().Debug("Lock failed, retrying...",
-			zap.String("key", key),
-			zap.Int("attempt", i+1),
-			zap.Duration("waitTime", waitTime),
-		)
-
-		select {
-		case <-time.After(waitTime):
-		case <-ctx.Done():
-			return false, ctx.Err()
+		ltmRecords = append(ltmRecords, &models.LongTermMemory{UserID: userID, Content: knowledge})
+		segmentIDsToDelete = append(segmentIDsToDelete, segment.ID)
+		for _, page := range segment.Pages {
+			pageIDsToArchive = append(pageIDsToArchive, page.ID)
 		}
 	}
 
-	return false, nil
+	if len(ltmRecords) > 0 {
+		zap.L().Info("Archiving segments to LTM", zap.Int("count", len(segmentIDsToDelete)), zap.Uint("userID", userID))
+		if err := uc.repo.ArchiveSegmentsToLTM(ctx, ltmRecords, segmentIDsToDelete, pageIDsToArchive); err != nil {
+			return fmt.Errorf("failed to archive segments to LTM: %w", err)
+		}
+	}
+
+	if err := uc.repo.DeleteLTMFromCache(ctx, userID); err != nil {
+		zap.L().Error("Failed to delete LTM from cache", zap.Uint("userID", userID), zap.Error(err))
+	}
+
+	return nil
 }
 
 func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt string) ([]*Memory, error) {
@@ -244,16 +187,27 @@ func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt
 		return nil, err
 	}
 
-	mtmPages, err := uc.repo.GetMTM(ctx, userID, &models.Page{UserInput: prompt})
+	mtmPages, err := uc.repo.GetMTM(ctx, userID, prompt)
 	if err != nil {
 		zap.L().Error("get MTM pages failed", zap.Error(err))
 		return nil, err
 	}
 
-	ltm, err := uc.repo.GetLTM(ctx, userID)
+	ltm, err := uc.repo.GetLTMFromCache(ctx, userID)
 	if err != nil {
-		zap.L().Error("get LTM pages failed", zap.Error(err))
-		return nil, err
+		zap.L().Error("get LTM pages from cache failed", zap.Error(err))
+	}
+
+	if len(ltm) == 0 {
+		ltm, err = uc.repo.GetLTM(ctx, userID)
+		if err != nil {
+			zap.L().Error("get LTM pages failed", zap.Error(err))
+			return nil, err
+		}
+
+		if err := uc.repo.SaveLTMToCache(ctx, userID, ltm); err != nil {
+			zap.L().Error("save LTM pages to cache failed", zap.Error(err))
+		}
 	}
 
 	outputMemory := make([]*Memory, 0, len(stmPages)+len(mtmPages)+len(ltm))

@@ -6,6 +6,8 @@ import (
 
 	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/Fl0rencess720/Doria/src/consts"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/agent"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/distlock"
 	"github.com/google/wire"
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 	"github.com/redis/go-redis/v9"
@@ -19,7 +21,7 @@ import (
 const consumerGroupID = "memory-service-consumer-group"
 
 var ProviderSet = wire.NewSet(NewMemoryRepo, NewKafkaClient,
-	NewPostgres, NewRedis, NewMemoryRetriever)
+	NewPostgres, NewRedis, NewMemoryRetriever, agent.NewAgent, distlock.NewRedisLocker)
 
 type kafkaClient struct {
 	Reader *kafka.Reader

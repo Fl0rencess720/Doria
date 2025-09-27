@@ -10,7 +10,8 @@ import (
 	"github.com/Fl0rencess720/Doria/src/services/memory/configs"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data"
-	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/distlock"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/agent"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/distlock"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/service"
 )
 
@@ -21,10 +22,11 @@ func wireApp() *App {
 	kafkaClient := data.NewKafkaClient()
 	db := data.NewPostgres()
 	client := data.NewRedis()
-	memoryRetriever := data.NewMemoryRetriever()
-	memoryRepo := data.NewMemoryRepo(kafkaClient, db, client, memoryRetriever)
 	locker := distlock.NewRedisLocker(client)
-	memoryUseCase := biz.NewMemoryUseCase(memoryRepo, locker)
+	memoryRetriever := data.NewMemoryRetriever()
+	memoryRepo := data.NewMemoryRepo(kafkaClient, db, client, locker, memoryRetriever)
+	llmAgent := agent.NewAgent()
+	memoryUseCase := biz.NewMemoryUseCase(memoryRepo, llmAgent)
 	memoryService := service.NewMemoryService(string2, memoryUseCase)
 	app := NewApp(memoryService)
 	return app
