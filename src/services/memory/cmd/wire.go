@@ -11,7 +11,6 @@ import (
 	"github.com/Fl0rencess720/Doria/src/services/memory/configs"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data"
-	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/distlock"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/service"
 )
 
@@ -32,6 +31,5 @@ func wireApp() *App {
 		service.ProviderSet,
 		biz.ProviderSet,
 		data.ProviderSet,
-		distlock.ProviderSet,
 	))
 }

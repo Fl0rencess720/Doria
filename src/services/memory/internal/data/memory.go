@@ -3,69 +3,107 @@ package data
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/Fl0rencess720/Doria/src/consts"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/distlock"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/models"
-	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/agent"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/utils"
 	"github.com/milvus-io/milvus/client/v2/entity"
 	"github.com/milvus-io/milvus/client/v2/index"
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 const (
 	H_PROFILE_UPDATE_THRESHOLD = 15.0
 	LTM_SIMILARITY_THRESHOLD   = 0.4
+
+	LTM_CACHE_TTL = 12 * time.Hour
+)
+
+const (
+	lockPrefix         = "lock:memory_process:"
+	lockTTL            = 2 * time.Minute
+	lockMaxRetries     = 5
+	lockInitialBackoff = 100 * time.Millisecond
+	lockMaxBackoff     = 6 * time.Second
 )
 
 type memoryRepo struct {
-	kafkaClient     *kafkaClient
-	pg              *gorm.DB
-	redisClient     *redis.Client
+	kafkaClient *kafkaClient
+	pg          *gorm.DB
+	redisClient *redis.Client
+	distLocker  distlock.Locker
+
 	memoryRetriever *memoryRetriever
 }
 
-func getUserSTMKey(userID uint) string {
-	return fmt.Sprintf("%d", userID)
-}
-
-func getUserMTMKey(userID uint) string {
-	return fmt.Sprintf("mtm_%d", userID)
-}
-
-func NewMemoryRepo(kafkaClient *kafkaClient, pg *gorm.DB,
-	redisClient *redis.Client, memoryRetriever *memoryRetriever) biz.MemoryRepo {
+func NewMemoryRepo(
+	kafkaClient *kafkaClient,
+	pg *gorm.DB,
+	redisClient *redis.Client,
+	locker distlock.Locker,
+	retriever *memoryRetriever,
+) biz.MemoryRepo {
 	return &memoryRepo{
 		kafkaClient:     kafkaClient,
 		pg:              pg,
 		redisClient:     redisClient,
-		memoryRetriever: memoryRetriever,
+		distLocker:      locker,
+		memoryRetriever: retriever,
 	}
 }
 
-func (r *memoryRepo) ReadMessageFromKafka(ctx context.Context) (*models.MateMessage, error) {
+func (r *memoryRepo) ReadMessage(ctx context.Context) (*models.MateMessage, error) {
 	msg, err := r.kafkaClient.Reader.ReadMessage(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	mateMessage := models.MateMessage{}
 	if err := json.Unmarshal(msg.Value, &mateMessage); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal kafka message: %w", err)
+	}
+	return &mateMessage, nil
+}
+
+func (r *memoryRepo) ProcessWithLock(ctx context.Context, userID uint, processFunc func(ctx context.Context) error) error {
+	key := fmt.Sprintf("%s%d", lockPrefix, userID)
+
+	locked, err := r.acquireLockWithRetry(ctx, key, lockTTL)
+	if err != nil {
+		return fmt.Errorf("lock acquisition process failed for key '%s': %w", key, err)
+	}
+	if !locked {
+		zap.L().Warn("Could not acquire lock for user, skipping processing.",
+			zap.String("key", key),
+			zap.Uint("userID", userID),
+		)
+		return nil
 	}
 
-	return &mateMessage, nil
+	defer func() {
+		if unlockErr := r.distLocker.Unlock(context.Background(), key); unlockErr != nil {
+			zap.L().Error("CRITICAL: failed to unlock. Lock will expire by TTL",
+				zap.String("key", key),
+				zap.Error(unlockErr),
+			)
+		}
+	}()
+
+	return processFunc(ctx)
 }
 
 func (r *memoryRepo) IsSTMFull(ctx context.Context, userID uint) (bool, error) {
 	STMCapacity := viper.GetInt("memory.stm_capacity")
-
 	key := getUserSTMKey(userID)
 	count, err := r.redisClient.ZScore(ctx, consts.RedisSTMLengthKey, key).Result()
 	if err != nil {
@@ -74,41 +112,162 @@ func (r *memoryRepo) IsSTMFull(ctx context.Context, userID uint) (bool, error) {
 		}
 		return false, err
 	}
-
 	return count >= float64(STMCapacity), nil
 }
 
-func (r *memoryRepo) IsMTMFull(ctx context.Context, userID uint) (bool, error) {
-	MTMCapacity := viper.GetInt("memory.mtm_capacity")
-	key := getUserMTMKey(userID)
+func (r *memoryRepo) GetSTMPagesToProcess(ctx context.Context, userID uint) ([]*models.Page, error) {
+	STMCapacity := viper.GetInt("memory.stm_capacity")
+	pagesInSTM := []*models.Page{}
+	if err := r.pg.WithContext(ctx).Debug().
+		Where("user_id = ? AND status = ?", userID, "in_stm").
+		Order("created_at ASC").
+		Find(&pagesInSTM).Error; err != nil {
+		return nil, err
+	}
+	if len(pagesInSTM) <= STMCapacity {
+		return []*models.Page{}, nil
+	}
 
-	count, err := r.redisClient.ZScore(ctx, consts.RedisMTMLengthKey, key).Result()
+	pagesToProcessCount := len(pagesInSTM) - STMCapacity
+
+	return pagesInSTM[0:pagesToProcessCount], nil
+}
+
+func (r *memoryRepo) FindMostRelevantSegment(ctx context.Context, userID uint, page *models.Page) (*models.Correlation, error) {
+	correlations, err := r.getMostRelevantSegment(ctx, userID, []*models.Page{page})
 	if err != nil {
-		if err == redis.Nil {
-			return false, nil
-		}
+		return nil, err
+	}
+
+	if len(correlations) == 0 {
+		return nil, nil
+	}
+
+	return correlations[0], nil
+}
+
+func (r *memoryRepo) CreateSegment(ctx context.Context, newSegment *models.Segment, pages []*models.Page) error {
+
+	if err := r.createSegment(ctx, newSegment); err != nil {
+		return fmt.Errorf("failed to create new segment: %w", err)
+	}
+
+	return r.appendPagesToSegment(ctx, newSegment.ID, pages)
+}
+
+func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, pages []*models.Page) error {
+	return r.appendPagesToSegment(ctx, segmentID, pages)
+}
+
+func (r *memoryRepo) FindHotSegments(ctx context.Context, userID uint) ([]*models.Segment, error) {
+	segments := []*models.Segment{}
+
+	if err := r.pg.WithContext(ctx).Debug().
+		Where("user_id = ?", userID).
+		Preload("Pages").
+		Find(&segments).Error; err != nil {
+		return nil, err
+	}
+	return segments, nil
+}
+
+func (r *memoryRepo) IsKnowledgeRedundant(ctx context.Context, userID uint, knowledge string) (bool, error) {
+	mr := r.memoryRetriever
+
+	embedVector64, err := mr.embedder.Embed(ctx, knowledge)
+	if err != nil {
+		return false, err
+	}
+	embedVector := utils.ConvertFloat64ToFloat32([][]float64{embedVector64})[0]
+
+	denseReq := milvusclient.NewAnnRequest("dense", 5, entity.FloatVector(embedVector)).
+		WithAnnParam(index.NewIvfAnnParam(5)).
+		WithSearchParam(index.MetricTypeKey, "COSINE").
+		WithFilter(fmt.Sprintf("user_id == %d", userID))
+
+	annParam := index.NewSparseAnnParam()
+	annParam.WithDropRatio(0.2)
+	sparseReq := milvusclient.NewAnnRequest("sparse", 5, entity.Text(knowledge)).
+		WithAnnParam(annParam).
+		WithSearchParam(index.MetricTypeKey, "BM25").
+		WithFilter(fmt.Sprintf("user_id == %d", userID))
+
+	reranker := milvusclient.NewWeightedReranker([]float64{0.4, 0.6})
+
+	resultSets, err := mr.client.HybridSearch(ctx, milvusclient.NewHybridSearchOption(
+		viper.GetString("memory.milvus.ltm_collection"),
+		1,
+		denseReq,
+		sparseReq,
+	).WithReranker(reranker).WithOutputFields("text"))
+	if err != nil {
 		return false, err
 	}
 
-	return count > float64(MTMCapacity), nil
-}
+	score := float32(-1)
 
-func (r *memoryRepo) PushPageToSTM(ctx context.Context, userID uint, page *models.Page) error {
-	if err := r.pg.WithContext(ctx).Debug().Create(page).Error; err != nil {
-		return err
+	for _, resultSet := range resultSets {
+		for i := 0; i < resultSet.Len(); i++ {
+			score = resultSet.Scores[i]
+		}
 	}
 
-	key := getUserSTMKey(userID)
-	_, err := r.redisClient.ZIncrBy(ctx, consts.RedisSTMLengthKey, 1, key).Result()
-	if err != nil {
-		return err
+	if score == -1 {
+		return true, nil
 	}
 
-	return nil
+	return score <= LTM_SIMILARITY_THRESHOLD, nil
 }
 
-func (r *memoryRepo) PopOldestSTMPages(ctx context.Context, userID uint) ([]*models.Page, error) {
-	STMCapacity := viper.GetInt("memory.stm_capacity")
+func (r *memoryRepo) ArchiveSegmentsToLTM(ctx context.Context, ltmRecords []*models.LongTermMemory, segmentIDsToDel []uint, pageIDsToArchive []uint) error {
+	return r.pg.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if len(ltmRecords) > 0 {
+			if err := tx.Debug().Create(&ltmRecords).Error; err != nil {
+				return err
+			}
+
+			for _, ltm := range ltmRecords {
+				knowledgeEmbedding, err := r.memoryRetriever.embedder.Embed(ctx, ltm.Content)
+				if err != nil {
+					return err
+				}
+				denseVector := utils.ConvertFloat64ToFloat32([][]float64{knowledgeEmbedding})[0]
+				_, err = r.memoryRetriever.client.Insert(ctx, milvusclient.NewColumnBasedInsertOption(viper.GetString("memory.milvus.ltm_collection")).
+					WithInt64Column("user_id", []int64{int64(ltm.UserID)}).
+					WithVarcharColumn("text", []string{ltm.Content}).
+					WithFloatVectorColumn("dense", 2048, [][]float32{denseVector}))
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if len(pageIDsToArchive) > 0 {
+			if err := tx.Debug().Model(&models.Page{}).Where("id IN ?", pageIDsToArchive).Update("status", "in_ltm").Error; err != nil {
+				return err
+			}
+		}
+
+		if len(segmentIDsToDel) > 0 {
+			if err := tx.Debug().Where("id IN (?) AND user_id = ?", segmentIDsToDel,
+				ltmRecords[0].UserID).Delete(&models.Segment{}).Error; err != nil { // 假设 userID 都一样
+				return err
+			}
+
+			_, err := r.memoryRetriever.client.Delete(ctx,
+				milvusclient.NewDeleteOption(viper.GetString("memory.milvus.segment_collection")).
+					WithInt64IDs("segment_id", utils.ConvertUintToInt64(segmentIDsToDel)),
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *memoryRepo) GetSTM(ctx context.Context, userID uint) ([]*models.Page, error) {
 	pagesInSTM := []*models.Page{}
 	if err := r.pg.WithContext(ctx).Debug().
 		Where("user_id = ?", userID).
@@ -117,17 +276,129 @@ func (r *memoryRepo) PopOldestSTMPages(ctx context.Context, userID uint) ([]*mod
 		Find(&pagesInSTM).Error; err != nil {
 		return nil, err
 	}
-
-	if len(pagesInSTM) <= STMCapacity {
-		return []*models.Page{}, nil
-	}
-
-	pagesToBeProcessed := pagesInSTM[0 : len(pagesInSTM)-STMCapacity]
-
-	return pagesToBeProcessed, nil
+	return pagesInSTM, nil
 }
 
-func (r *memoryRepo) GetMostRelevantSegment(ctx context.Context, userID uint, pages []*models.Page) ([]*models.Correlation, error) {
+func (r *memoryRepo) GetMTM(ctx context.Context, userID uint, prompt string) ([]*models.Page, error) {
+	pagesInMTM := make([]*models.Page, 0)
+	correlation, err := r.getMostRelevantSegment(ctx, userID, []*models.Page{{UserInput: prompt}})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || len(correlation) == 0 {
+			return pagesInMTM, nil
+		}
+		return nil, err
+	}
+	if len(correlation) == 0 {
+		return pagesInMTM, nil
+	}
+	segmentID := correlation[0].SegmentID
+	pageIDs, err := r.getSegmentPageIDs(ctx, segmentID)
+	if err != nil {
+		return nil, err
+	}
+	if len(pageIDs) == 0 {
+		return pagesInMTM, nil
+	}
+	pagesInMTM, err = r.getTopKRelevantPages(ctx, pageIDs, prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.updateSegmentVisit(ctx, segmentID); err != nil {
+		zap.L().Error("Failed to update segment visit record", zap.Uint("segmentID", segmentID), zap.Error(err))
+	}
+
+	return pagesInMTM, nil
+}
+
+func (r *memoryRepo) SaveLTMToCache(ctx context.Context, userID uint, ltmRecords []*models.LongTermMemory) error {
+	jsonData, err := json.Marshal(ltmRecords)
+	if err != nil {
+		return err
+	}
+
+	if err := r.redisClient.Set(ctx, getUserLTMKey(userID), jsonData, LTM_CACHE_TTL).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *memoryRepo) GetLTMFromCache(ctx context.Context, userID uint) ([]*models.LongTermMemory, error) {
+	jsonData, err := r.redisClient.Get(ctx, getUserLTMKey(userID)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return []*models.LongTermMemory{}, nil
+		}
+		return nil, err
+	}
+
+	var ltms []*models.LongTermMemory
+	if err := json.Unmarshal([]byte(jsonData), &ltms); err != nil {
+		return nil, err
+	}
+	return ltms, nil
+}
+
+func (r *memoryRepo) DeleteLTMFromCache(ctx context.Context, userID uint) error {
+	if err := r.redisClient.Del(ctx, getUserLTMKey(userID)).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *memoryRepo) GetLTM(ctx context.Context, userID uint) ([]*models.LongTermMemory, error) {
+	ltms := []*models.LongTermMemory{}
+	if err := r.pg.WithContext(ctx).Debug().
+		Where("user_id = ?", userID).
+		Find(&ltms).Error; err != nil {
+		return nil, err
+	}
+	return ltms, nil
+}
+
+func getUserSTMKey(userID uint) string {
+	return fmt.Sprintf("%d", userID)
+}
+
+func getUserLTMKey(userID uint) string {
+	return fmt.Sprintf("ltm:%d", userID)
+}
+
+func (r *memoryRepo) acquireLockWithRetry(ctx context.Context, key string, ttl time.Duration) (bool, error) {
+	backoff := lockInitialBackoff
+	for i := 0; i < lockMaxRetries; i++ {
+		locked, err := r.distLocker.Lock(ctx, key, ttl)
+		if err != nil {
+			return false, fmt.Errorf("error on lock attempt %d: %w", i+1, err)
+		}
+
+		if locked {
+			return true, nil
+		}
+
+		if i == lockMaxRetries-1 {
+			break
+		}
+
+		backoff *= 2
+		if backoff > lockMaxBackoff {
+			backoff = lockMaxBackoff
+		}
+
+		jitter := time.Duration(rand.Intn(100)) * time.Millisecond
+		waitTime := backoff + jitter
+
+		select {
+		case <-time.After(waitTime):
+		case <-ctx.Done():
+			return false, ctx.Err()
+		}
+	}
+
+	return false, nil
+}
+
+func (r *memoryRepo) getMostRelevantSegment(ctx context.Context, userID uint, pages []*models.Page) ([]*models.Correlation, error) {
 	mr := r.memoryRetriever
 
 	correlations := make([]*models.Correlation, 0, len(pages))
@@ -138,16 +409,18 @@ func (r *memoryRepo) GetMostRelevantSegment(ctx context.Context, userID uint, pa
 			return nil, err
 		}
 
-		denseQuery := convertFloat64ToFloat32([][]float64{denseQueryVector64})[0]
+		denseQuery := utils.ConvertFloat64ToFloat32([][]float64{denseQueryVector64})[0]
 		denseReq := milvusclient.NewAnnRequest("dense", 10, entity.FloatVector(denseQuery)).
 			WithAnnParam(index.NewIvfAnnParam(10)).
-			WithSearchParam(index.MetricTypeKey, "COSINE")
+			WithSearchParam(index.MetricTypeKey, "COSINE").
+			WithFilter(fmt.Sprintf("user_id == %d", userID))
 
 		annParam := index.NewSparseAnnParam()
 		annParam.WithDropRatio(0.2)
 		sparseReq := milvusclient.NewAnnRequest("sparse", 10, entity.Text(query)).
 			WithAnnParam(annParam).
-			WithSearchParam(index.MetricTypeKey, "BM25")
+			WithSearchParam(index.MetricTypeKey, "BM25").
+			WithFilter(fmt.Sprintf("user_id == %d", userID))
 
 		reranker := milvusclient.NewWeightedReranker([]float64{0.4, 0.6})
 
@@ -182,44 +455,30 @@ func (r *memoryRepo) GetMostRelevantSegment(ctx context.Context, userID uint, pa
 	return correlations, nil
 }
 
-func (r *memoryRepo) CreateSegment(ctx context.Context, userID uint, pages []*models.Page) (uint, error) {
-	agent, err := agent.NewAgent(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	overview, err := agent.GenSegmentOverview(ctx, pages)
-	if err != nil {
-		return 0, err
-	}
-
-	segment := models.Segment{
-		Overview: overview,
-		UserID:   userID,
-	}
-
+func (r *memoryRepo) createSegment(ctx context.Context, segment *models.Segment) error {
 	if err := r.pg.WithContext(ctx).Debug().Create(&segment).Error; err != nil {
-		return 0, err
+		return err
 	}
 
-	overviewEmbedding, err := r.memoryRetriever.embedder.Embed(ctx, overview)
+	overviewEmbedding, err := r.memoryRetriever.embedder.Embed(ctx, segment.Overview)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	denseVector := convertFloat64ToFloat32([][]float64{overviewEmbedding})[0]
+	denseVector := utils.ConvertFloat64ToFloat32([][]float64{overviewEmbedding})[0]
 	_, err = r.memoryRetriever.client.Insert(ctx, milvusclient.NewColumnBasedInsertOption(viper.GetString("memory.milvus.segment_collection")).
 		WithInt64Column("segment_id", []int64{int64(segment.ID)}).
-		WithVarcharColumn("text", []string{overview}).
+		WithInt64Column("user_id", []int64{int64(segment.UserID)}).
+		WithVarcharColumn("text", []string{segment.Overview}).
 		WithFloatVectorColumn("dense", 2048, [][]float32{denseVector}))
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return segment.ID, nil
+	return nil
 }
 
-func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, pages []*models.Page) error {
+func (r *memoryRepo) appendPagesToSegment(ctx context.Context, segmentID uint, pages []*models.Page) error {
 	for _, page := range pages {
 		page.SegmentID = segmentID
 		page.Status = "in_mtm"
@@ -242,7 +501,7 @@ func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, p
 			return err
 		}
 
-		denseVector := convertFloat64ToFloat32([][]float64{pageEmbedding})[0]
+		denseVector := utils.ConvertFloat64ToFloat32([][]float64{pageEmbedding})[0]
 		_, err = r.memoryRetriever.client.Insert(ctx, milvusclient.NewColumnBasedInsertOption(viper.GetString("memory.milvus.page_collection")).
 			WithInt64Column("page_id", []int64{int64(page.ID)}).
 			WithVarcharColumn("text", []string{qaString}).
@@ -255,7 +514,7 @@ func (r *memoryRepo) AppendPagesToSegment(ctx context.Context, segmentID uint, p
 	return nil
 }
 
-func (r *memoryRepo) GetSegmentPageIDs(ctx context.Context, segmentID uint) ([]uint, error) {
+func (r *memoryRepo) getSegmentPageIDs(ctx context.Context, segmentID uint) ([]uint, error) {
 	pageIDs := []uint{}
 
 	if err := r.pg.WithContext(ctx).Debug().
@@ -270,14 +529,14 @@ func (r *memoryRepo) GetSegmentPageIDs(ctx context.Context, segmentID uint) ([]u
 	return pageIDs, nil
 }
 
-func (r *memoryRepo) GetTopKRelevantPages(ctx context.Context, pageIDs []uint, qa string) ([]*models.Page, error) {
+func (r *memoryRepo) getTopKRelevantPages(ctx context.Context, pageIDs []uint, qa string) ([]*models.Page, error) {
 	mr := r.memoryRetriever
 
 	embedVector64, err := mr.embedder.Embed(ctx, qa)
 	if err != nil {
 		return nil, err
 	}
-	embedVector := convertFloat64ToFloat32([][]float64{embedVector64})[0]
+	embedVector := utils.ConvertFloat64ToFloat32([][]float64{embedVector64})[0]
 
 	filterExpr := "page_id in {page_ids}"
 
@@ -340,109 +599,7 @@ func (r *memoryRepo) GetTopKRelevantPages(ctx context.Context, pageIDs []uint, q
 	return pages, nil
 }
 
-func (r *memoryRepo) PopMTMToLTM(ctx context.Context, userID uint) error {
-	agent, err := agent.NewAgent(ctx)
-	if err != nil {
-		return err
-	}
-
-	return r.pg.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		segments := []*models.Segment{}
-		if err := tx.Debug().
-			Where("user_id = ?", userID).
-			Preload("Pages").
-			Find(&segments).Error; err != nil {
-			return err
-		}
-
-		knowledges := make([]string, 0, 32)
-		segmentIDs := make([]uint, 0, len(segments))
-		pageIDs := make([]uint, 0)
-
-		for _, segment := range segments {
-			heat, err := utils.ComputeSegmentHeat(ctx, segment)
-			if err != nil {
-				return err
-			}
-
-			if heat > H_PROFILE_UPDATE_THRESHOLD {
-				knowledge, err := agent.GenKnowledgeExtraction(ctx, segment.Pages)
-				if err != nil {
-					return err
-				}
-
-				should, err := r.shouldContentToLTM(ctx, knowledge)
-				if err != nil {
-					return err
-				}
-
-				if !should {
-					continue
-				}
-
-				knowledges = append(knowledges, knowledge)
-				segmentIDs = append(segmentIDs, segment.ID)
-
-				for _, page := range segment.Pages {
-					pageIDs = append(pageIDs, page.ID)
-				}
-			}
-		}
-
-		if len(knowledges) > 0 {
-			ltmRecords := make([]models.LongTermMemory, 0, len(knowledges))
-			for _, k := range knowledges {
-				ltmRecords = append(ltmRecords, models.LongTermMemory{
-					UserID:  userID,
-					Content: k,
-				})
-
-				knowledgeEmbedding, err := r.memoryRetriever.embedder.Embed(ctx, k)
-				if err != nil {
-					return err
-				}
-
-				denseVector := convertFloat64ToFloat32([][]float64{knowledgeEmbedding})[0]
-				_, err = r.memoryRetriever.client.Insert(ctx, milvusclient.NewColumnBasedInsertOption(viper.GetString("memory.milvus.ltm_collection")).
-					WithVarcharColumn("text", []string{k}).
-					WithFloatVectorColumn("dense", 2048, [][]float32{denseVector}))
-				if err != nil {
-					return err
-				}
-			}
-
-			if err := tx.Debug().Create(&ltmRecords).Error; err != nil {
-				return err
-			}
-		}
-
-		if len(segmentIDs) > 0 {
-			if err := tx.Debug().Where("id IN (?) AND user_id = ?", segmentIDs,
-				userID).Delete(&models.Segment{}).Error; err != nil {
-				return err
-			}
-		}
-
-		if len(pageIDs) > 0 {
-			if err := tx.Debug().Model(&models.Page{}).Where("id IN ?", pageIDs).Update("status",
-				"in_ltm").Error; err != nil {
-				return err
-			}
-		}
-
-		_, err = r.memoryRetriever.client.Delete(ctx,
-			milvusclient.NewDeleteOption(viper.GetString("memory.milvus.segment_collection")).
-				WithInt64IDs("segment_id", convertUintToInt64(segmentIDs)),
-		)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
-
-func (r *memoryRepo) UpdateSegmentVisit(ctx context.Context, segmentID uint) error {
+func (r *memoryRepo) updateSegmentVisit(ctx context.Context, segmentID uint) error {
 	return r.pg.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Debug().
 			Model(&models.Segment{}).
@@ -455,128 +612,4 @@ func (r *memoryRepo) UpdateSegmentVisit(ctx context.Context, segmentID uint) err
 		}
 		return nil
 	})
-}
-
-func (r *memoryRepo) shouldContentToLTM(ctx context.Context, content string) (bool, error) {
-	mr := r.memoryRetriever
-
-	embedVector64, err := mr.embedder.Embed(ctx, content)
-	if err != nil {
-		return false, err
-	}
-	embedVector := convertFloat64ToFloat32([][]float64{embedVector64})[0]
-
-	denseReq := milvusclient.NewAnnRequest("dense", 5, entity.FloatVector(embedVector)).
-		WithAnnParam(index.NewIvfAnnParam(5)).
-		WithSearchParam(index.MetricTypeKey, "COSINE")
-
-	annParam := index.NewSparseAnnParam()
-	annParam.WithDropRatio(0.2)
-	sparseReq := milvusclient.NewAnnRequest("sparse", 5, entity.Text(content)).
-		WithAnnParam(annParam).
-		WithSearchParam(index.MetricTypeKey, "BM25")
-
-	reranker := milvusclient.NewWeightedReranker([]float64{0.4, 0.6})
-
-	resultSets, err := mr.client.HybridSearch(ctx, milvusclient.NewHybridSearchOption(
-		viper.GetString("memory.milvus.ltm_collection"),
-		1,
-		denseReq,
-		sparseReq,
-	).WithReranker(reranker).WithOutputFields("text"))
-	if err != nil {
-		return false, err
-	}
-
-	score := float32(-1)
-
-	for _, resultSet := range resultSets {
-		for i := 0; i < resultSet.Len(); i++ {
-			score = resultSet.Scores[i]
-		}
-	}
-
-	if score == -1 {
-		return true, nil
-	}
-
-	return score <= LTM_SIMILARITY_THRESHOLD, nil
-}
-
-func (r *memoryRepo) GetSTM(ctx context.Context, userID uint) ([]*models.Page, error) {
-	pagesInSTM := []*models.Page{}
-	if err := r.pg.WithContext(ctx).Debug().
-		Where("user_id = ?", userID).
-		Where("status = ?", "in_stm").
-		Order("created_at ASC").
-		Find(&pagesInSTM).Error; err != nil {
-		return nil, err
-	}
-	return pagesInSTM, nil
-}
-
-func (r *memoryRepo) GetMTM(ctx context.Context, userID uint, page *models.Page) ([]*models.Page, error) {
-	pagesInMTM := make([]*models.Page, 0)
-
-	correlation, err := r.GetMostRelevantSegment(ctx, userID, []*models.Page{page})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(correlation) == 0 {
-		return pagesInMTM, nil
-	}
-
-	segmentID := correlation[0].SegmentID
-
-	pageIDs, err := r.GetSegmentPageIDs(ctx, segmentID)
-	if err != nil {
-		return nil, err
-	}
-
-	pagesInMTM, err = r.GetTopKRelevantPages(ctx, pageIDs, page.UserInput+"\n"+page.AgentOutput)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := r.UpdateSegmentVisit(ctx, segmentID); err != nil {
-		return nil, err
-	}
-
-	return pagesInMTM, nil
-}
-
-func (r *memoryRepo) GetLTM(ctx context.Context, userID uint) ([]*models.LongTermMemory, error) {
-	ltms := []*models.LongTermMemory{}
-
-	if err := r.pg.WithContext(ctx).Debug().
-		Where("user_id = ?", userID).
-		Find(&ltms).Error; err != nil {
-		return nil, err
-	}
-
-	return ltms, nil
-}
-
-func convertFloat64ToFloat32(input [][]float64) [][]float32 {
-	result := make([][]float32, len(input))
-
-	for i, row := range input {
-		result[i] = make([]float32, len(row))
-		for j, val := range row {
-			result[i][j] = float32(val)
-		}
-	}
-
-	return result
-}
-
-func convertUintToInt64(input []uint) []int64 {
-	result := make([]int64, len(input))
-
-	for i, val := range input {
-		result[i] = int64(val)
-	}
-
-	return result
 }
