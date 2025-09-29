@@ -12,6 +12,7 @@ import (
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/agent"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/distlock"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/rag"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/service"
 )
 
@@ -23,23 +24,29 @@ func wireApp() *App {
 	db := data.NewPostgres()
 	client := data.NewRedis()
 	locker := distlock.NewRedisLocker(client)
-	memoryRetriever := data.NewMemoryRetriever()
+	embedder := rag.NewEmbedder()
+	memoryRetriever := data.NewMemoryRetriever(embedder)
 	memoryRepo := data.NewMemoryRepo(kafkaClient, db, client, locker, memoryRetriever)
 	llmAgent := agent.NewAgent()
 	memoryUseCase := biz.NewMemoryUseCase(memoryRepo, llmAgent)
 	memoryService := service.NewMemoryService(string2, memoryUseCase)
-	app := NewApp(memoryService)
+	ragRepo := data.NewRAGRepo(embedder)
+	ragUseCase := biz.NewRAGUseCase(ragRepo)
+	ragmcpService := service.NewRAGMCPServer(ragUseCase)
+	app := NewApp(memoryService, ragmcpService)
 	return app
 }
 
 // wire.go:
 
 type App struct {
-	Server *service.MemoryService
+	Server    *service.MemoryService
+	MCPServer *service.RAGMCPService
 }
 
-func NewApp(server *service.MemoryService) *App {
+func NewApp(server *service.MemoryService, mcpServer *service.RAGMCPService) *App {
 	return &App{
-		Server: server,
+		Server:    server,
+		MCPServer: mcpServer,
 	}
 }

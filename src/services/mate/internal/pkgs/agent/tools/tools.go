@@ -22,6 +22,7 @@ func Init() error {
 
 	t, err := NewRAGTool(ctx)
 	if err != nil {
+		fmt.Printf("err: %v\n", err)
 		return err
 	}
 	toolsRegistry["RAG"] = t

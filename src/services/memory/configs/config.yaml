@@ -27,6 +27,7 @@ memory:
 rag:
   embedding:
     model: doubao-embedding-large-text-250515
+  collectionName: structured_ds1
 
 agent:
   model:

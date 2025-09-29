@@ -51,6 +51,7 @@ func main() {
 		zap.L().Panic("Failed to start service", zap.Error(err))
 	}
 
+	app.MCPServer.Start()
 	app.Server.WaitForShutdown()
 
 	if err := app.Server.Stop(); err != nil {
