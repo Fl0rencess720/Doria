@@ -11,18 +11,17 @@ import (
 	"github.com/spf13/viper"
 )
 
-func NewRAGTool(ctx context.Context) (tool.InvokableTool, error) {
+func NewRAGTool(ctx context.Context) (tool.InvokableTool, *client.Client, error) {
 	url := viper.GetString("mcp.rag.url")
-	fmt.Printf("url: %v\n", url)
 
 	cli, err := client.NewStreamableHttpClient(url)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = cli.Start(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	initRequest := mcp.InitializeRequest{}
@@ -34,7 +33,7 @@ func NewRAGTool(ctx context.Context) (tool.InvokableTool, error) {
 
 	_, err = cli.Initialize(ctx, initRequest)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tools, err := mcpp.GetTools(ctx, &mcpp.Config{
@@ -42,12 +41,12 @@ func NewRAGTool(ctx context.Context) (tool.InvokableTool, error) {
 		ToolNameList: []string{"retrieve_documents_from_knowledge_base"},
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(tools) == 0 {
-		return nil, fmt.Errorf("no RAG tools found")
+		return nil, nil, fmt.Errorf("no RAG tools found")
 	}
 
-	return tools[0].(tool.InvokableTool), nil
+	return tools[0].(tool.InvokableTool), cli, nil
 }
