@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
@@ -20,7 +19,7 @@ type AgentMemory struct {
 	Knowledges []string
 }
 
-func NewAgent(ctx context.Context, hr *rag.HybridRetriever) (*Agent, error) {
+func NewAgent(ctx context.Context) (*Agent, error) {
 	cm, err := newChatModel(ctx)
 	if err != nil {
 		return nil, err
@@ -35,7 +34,7 @@ func NewAgent(ctx context.Context, hr *rag.HybridRetriever) (*Agent, error) {
 		return nil, err
 	}
 
-	g, err := buildChatGraph(ctx, cm, jcm, hr)
+	g, err := buildChatGraph(ctx, cm, jcm)
 	if err != nil {
 		return nil, err
 	}

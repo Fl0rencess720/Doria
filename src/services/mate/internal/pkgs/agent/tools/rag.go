@@ -2,79 +2,51 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/Fl0rencess720/Doria/src/common/rag"
+	mcpp "github.com/cloudwego/eino-ext/components/tool/mcp"
 	"github.com/cloudwego/eino/components/tool"
-	"github.com/cloudwego/eino/schema"
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/spf13/viper"
 )
 
-type RagTool struct {
-	hr *rag.HybridRetriever
-}
+func NewRAGTool(ctx context.Context) (tool.InvokableTool, *client.Client, error) {
+	url := viper.GetString("mcp.rag.url")
 
-type RAGToolInput struct {
-	Query string `json:"query" jsonschema:"description=查询文本,required"`
-}
-
-func NewRAGTool(ctx context.Context) (tool.InvokableTool, error) {
-	hr, err := rag.NewHybridRetriever(ctx)
+	cli, err := client.NewStreamableHttpClient(url)
 	if err != nil {
-		return nil, err
-	}
-	if hr == nil {
-		return nil, fmt.Errorf("hybrid retriever is nil")
+		return nil, nil, err
 	}
 
-	return &RagTool{
-		hr: hr,
-	}, nil
-}
-
-func (t *RagTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
-	return &schema.ToolInfo{
-		Name: "RAG",
-		Desc: "基于检索的自动生成工具",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"query": {
-				Type:     schema.String,
-				Desc:     "查询文本",
-				Required: true,
-			},
-		}),
-	}, nil
-}
-
-func (w *RagTool) InvokableRun(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
-	var input RAGToolInput
-	if err := json.Unmarshal([]byte(argumentsInJSON), &input); err != nil {
-		return "", err
-	}
-
-	if input.Query == "" {
-		return "", fmt.Errorf("query is empty")
-	}
-
-	hr := w.hr
-	docs, err := hr.Retrieve(ctx, input.Query)
+	err = cli.Start(ctx)
 	if err != nil {
-		return "检索出错: " + err.Error(), err
+		return nil, nil, err
 	}
 
-	var contents []string
-
-	for _, doc := range docs {
-		if doc != nil && doc.Content != "" {
-			contents = append(contents, doc.Content)
-		}
+	initRequest := mcp.InitializeRequest{}
+	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+	initRequest.Params.ClientInfo = mcp.Implementation{
+		Name:    "rag-client",
+		Version: "1.0.0",
 	}
 
-	result := strings.Join(contents, "\n\n")
-	if result == "" {
-		result = "未找到相关文档"
+	_, err = cli.Initialize(ctx, initRequest)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return result, nil
+	tools, err := mcpp.GetTools(ctx, &mcpp.Config{
+		Cli:          cli,
+		ToolNameList: []string{"retrieve_documents_from_knowledge_base"},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(tools) == 0 {
+		return nil, nil, fmt.Errorf("no RAG tools found")
+	}
+
+	return tools[0].(tool.InvokableTool), cli, nil
 }

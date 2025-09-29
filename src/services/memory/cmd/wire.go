@@ -15,12 +15,14 @@ import (
 )
 
 type App struct {
-	Server *service.MemoryService
+	Server    *service.MemoryService
+	MCPServer *service.RAGMCPService
 }
 
-func NewApp(server *service.MemoryService) *App {
+func NewApp(server *service.MemoryService, mcpServer *service.RAGMCPService) *App {
 	return &App{
-		Server: server,
+		Server:    server,
+		MCPServer: mcpServer,
 	}
 }
 

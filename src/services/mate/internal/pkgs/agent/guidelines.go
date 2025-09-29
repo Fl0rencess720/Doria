@@ -40,11 +40,13 @@ func FormatGuidelines(guidelines []*Guideline) string {
 	return sb.String()
 }
 
-func loadGuideline(_ context.Context) ([]*Guideline, error) {
-	ragTool, err := tools.GetRAGTool()
+func loadGuideline(ctx context.Context) ([]*Guideline, error) {
+	mcpManager, err := tools.NewMCPManager(ctx)
 	if err != nil {
-		zap.L().Error("load RAG tool failed", zap.Error(err))
+		zap.L().Error("load MCP manager failed", zap.Error(err))
 	}
+
+	ragTool := mcpManager.GetRAGTool()
 
 	guidelines := make([]*Guideline, 0, 6)
 

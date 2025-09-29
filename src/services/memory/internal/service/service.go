@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-var ProviderSet = wire.NewSet(NewMemoryService)
+var ProviderSet = wire.NewSet(NewMemoryService, NewRAGMCPServer)
 
 type MemoryService struct {
 	memoryapi.UnimplementedMemoryServiceServer

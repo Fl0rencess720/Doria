@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
@@ -34,8 +33,6 @@ type state struct {
 	prompt    string
 	knowledge string
 
-	hr *rag.HybridRetriever
-
 	guidelines       []*Guideline
 	guidelinesString string
 
@@ -56,7 +53,7 @@ type ObserverOutput struct {
 }
 
 func buildChatGraph(_ context.Context, mainCM model.ToolCallingChatModel,
-	jsonCM model.ToolCallingChatModel, hr *rag.HybridRetriever) (*compose.Graph[map[string]any, *schema.Message], error) {
+	jsonCM model.ToolCallingChatModel) (*compose.Graph[map[string]any, *schema.Message], error) {
 	compose.RegisterSerializableType[state]("state")
 
 	guidelineProposerTpl := newGuidelineProposerResponseTemplate()
@@ -66,9 +63,7 @@ func buildChatGraph(_ context.Context, mainCM model.ToolCallingChatModel,
 
 	g := compose.NewGraph[map[string]any, *schema.Message](
 		compose.WithGenLocalState(func(ctx context.Context) *state {
-			return &state{
-				hr: hr,
-			}
+			return &state{}
 		}))
 
 	_ = g.AddChatTemplateNode(GuidelineProposerPromptTplKey, guidelineProposerTpl, compose.WithStatePreHandler(saveInputToState))

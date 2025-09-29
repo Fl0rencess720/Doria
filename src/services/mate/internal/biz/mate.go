@@ -3,7 +3,6 @@ package biz
 import (
 	"context"
 
-	"github.com/Fl0rencess720/Doria/src/common/rag"
 	memoryapi "github.com/Fl0rencess720/Doria/src/rpc/memory"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/pkgs/agent"
@@ -69,12 +68,7 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 		knowledges = append(knowledges, m.Context)
 	}
 
-	hr, err := rag.NewHybridRetriever(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	mate, err = agent.NewAgent(ctx, hr)
+	mate, err = agent.NewAgent(ctx)
 	if err != nil {
 		return "", err
 	}

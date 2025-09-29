@@ -25,17 +25,12 @@ project:
 
 agent:
   model:
-    chat: "Qwen/Qwen3-Next-80B-A3B-Instruct"
-    retrieval: "Qwen/Qwen3-Next-80B-A3B-Instruct"
+    chat: "Qwen/Qwen3-235B-A22B-Instruct-2507"
+    retrieval: "Qwen/Qwen3-235B-A22B-Instruct-2507"
 
-rag:
-  milvus:
-    username: root
-  retriever:
-    topK: 5
-    collectionName: structured_ds1
-  embedding:
-    model: doubao-embedding-large-text-250515
+mcp:
+  rag:
+    url: http://localhost:8082/mcp/rag
 
 services:
   memory:

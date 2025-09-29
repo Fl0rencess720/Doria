@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Fl0rencess720/Doria/src/common/rag"
 	"github.com/Fl0rencess720/Doria/src/consts"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/agent"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/distlock"
+	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/rag"
 	"github.com/google/wire"
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 	"github.com/redis/go-redis/v9"
@@ -20,8 +20,9 @@ import (
 
 const consumerGroupID = "memory-service-consumer-group"
 
-var ProviderSet = wire.NewSet(NewMemoryRepo, NewKafkaClient,
-	NewPostgres, NewRedis, NewMemoryRetriever, agent.NewAgent, distlock.NewRedisLocker)
+var ProviderSet = wire.NewSet(NewMemoryRepo, NewRAGRepo, NewKafkaClient,
+	NewPostgres, NewRedis, NewMemoryRetriever, agent.NewAgent, distlock.NewRedisLocker,
+	rag.NewEmbedder)
 
 type kafkaClient struct {
 	Reader *kafka.Reader
@@ -68,13 +69,8 @@ func NewRedis() *redis.Client {
 	return rdb
 }
 
-func NewMemoryRetriever() *memoryRetriever {
-	ctx := context.Background()
+func NewMemoryRetriever(embedder rag.Embedder) *memoryRetriever {
 	client := newMilvusClient()
-	embedder, err := rag.NewEmbedder(ctx)
-	if err != nil {
-		zap.L().Panic("New Embedder error", zap.Error(err))
-	}
 
 	return &memoryRetriever{
 		client:   client,
