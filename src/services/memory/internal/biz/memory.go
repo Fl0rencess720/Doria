@@ -31,7 +31,7 @@ type MemoryRepo interface {
 
 type LLMAgent interface {
 	GenSegmentOverview(ctx context.Context, qas []*models.Page) (string, error)
-	GenKnowledgeExtraction(ctx context.Context, qas []*models.Page) (string, error)
+	GenKnowledgeExtraction(ctx context.Context, qas []*models.Page, knowledge string) (string, error)
 }
 
 type MemoryUseCase struct {

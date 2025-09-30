@@ -71,7 +71,7 @@ func (a *agent) GenSegmentOverview(ctx context.Context, qas []*models.Page) (str
 	return response.Content, nil
 }
 
-func (a *agent) GenKnowledgeExtraction(ctx context.Context, qas []*models.Page) (string, error) {
+func (a *agent) GenKnowledgeExtraction(ctx context.Context, qas []*models.Page, knowledge string) (string, error) {
 	var builder strings.Builder
 
 	for _, qa := range qas {
@@ -82,7 +82,8 @@ func (a *agent) GenKnowledgeExtraction(ctx context.Context, qas []*models.Page) 
 	qasString := builder.String()
 
 	response, err := a.knowledgeExtractionRunnable.Invoke(ctx, map[string]any{
-		"qas": qasString,
+		"qas":       qasString,
+		"knowledge": knowledge,
 	})
 	if err != nil {
 		return "", err

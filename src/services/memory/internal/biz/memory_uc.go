@@ -150,7 +150,17 @@ func (uc *MemoryUseCase) transitionMTMToLTM(ctx context.Context, userID uint) er
 			continue
 		}
 
-		knowledge, err := uc.agent.GenKnowledgeExtraction(ctx, segment.Pages)
+		ltm, err := uc.repo.GetLTMFromCache(ctx, userID)
+		if err != nil {
+			zap.L().Error("Failed to get LTM from cache", zap.Uint("userID", userID), zap.Error(err))
+			ltm, err = uc.repo.GetLTM(ctx, userID)
+			if err != nil {
+				zap.L().Error("Failed to get LTM from DB", zap.Uint("userID", userID), zap.Error(err))
+				continue
+			}
+		}
+
+		knowledge, err := uc.agent.GenKnowledgeExtraction(ctx, segment.Pages, ltm[0].Content)
 		if err != nil {
 			zap.L().Warn("Failed to extract knowledge from segment", zap.Uint("segmentID", segment.ID), zap.Error(err))
 			continue
