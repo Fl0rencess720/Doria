@@ -9,6 +9,7 @@ import (
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/models"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/pkgs/utils"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -186,37 +187,55 @@ func (uc *MemoryUseCase) transitionMTMToLTM(ctx context.Context, userID uint) er
 }
 
 func (uc *MemoryUseCase) RetrieveMemory(ctx context.Context, userID uint, prompt string) ([]*Memory, error) {
-	stmPages, err := uc.repo.GetSTM(ctx, userID)
-	if err != nil {
-		zap.L().Error("get STM pages failed", zap.Error(err))
-		return nil, err
-	}
+	g, gCtx := errgroup.WithContext(ctx)
+	var stmPages, mtmPages []*models.Page
+	var ltm []*models.LongTermMemory
 
-	mtmPages, err := uc.repo.GetMTM(ctx, userID, prompt)
-	if err != nil {
-		zap.L().Error("get MTM pages failed", zap.Error(err))
-		return nil, err
-	}
-
-	ltm, err := uc.repo.GetLTMFromCache(ctx, userID)
-	if err != nil {
-		zap.L().Error("get LTM pages from cache failed", zap.Error(err))
-	}
-
-	if len(ltm) == 0 {
-		ltm, err = uc.repo.GetLTM(ctx, userID)
+	g.Go(func() error {
+		var err error
+		stmPages, err = uc.repo.GetSTM(gCtx, userID)
 		if err != nil {
-			zap.L().Error("get LTM pages failed", zap.Error(err))
-			return nil, err
+			zap.L().Error("get STM pages failed", zap.Error(err))
+			return err
 		}
+		return nil
+	})
 
-		if err := uc.repo.SaveLTMToCache(ctx, userID, ltm); err != nil {
-			zap.L().Error("save LTM pages to cache failed", zap.Error(err))
+	g.Go(func() error {
+		var err error
+		mtmPages, err = uc.repo.GetMTM(gCtx, userID, prompt)
+		if err != nil {
+			zap.L().Error("get MTM pages failed", zap.Error(err))
+			return err
 		}
+		return nil
+	})
+
+	g.Go(func() error {
+		tempLtm, err := uc.repo.GetLTMFromCache(gCtx, userID)
+		if err != nil {
+			zap.L().Error("get LTM pages from cache failed", zap.Error(err))
+		}
+		if len(tempLtm) == 0 {
+			tempLtm, err = uc.repo.GetLTM(gCtx, userID)
+			if err != nil {
+				zap.L().Error("get LTM pages failed", zap.Error(err))
+				return err
+			}
+
+			if err := uc.repo.SaveLTMToCache(gCtx, userID, tempLtm); err != nil {
+				zap.L().Error("save LTM pages to cache failed", zap.Error(err))
+			}
+		}
+		ltm = tempLtm
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
 	outputMemory := make([]*Memory, 0, len(stmPages)+len(mtmPages)+len(ltm))
-
 	for _, page := range stmPages {
 		outputMemory = append(outputMemory, &Memory{
 			UserInput:   page.UserInput,
