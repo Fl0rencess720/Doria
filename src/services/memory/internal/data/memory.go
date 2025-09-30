@@ -367,31 +367,28 @@ func getUserLTMKey(userID uint) string {
 func (r *memoryRepo) acquireLockWithRetry(ctx context.Context, key string, ttl time.Duration) (bool, error) {
 	backoff := lockInitialBackoff
 	for i := 0; i < lockMaxRetries; i++ {
-		locked, err := r.distLocker.Lock(ctx, key, ttl)
-		if err != nil {
-			return false, fmt.Errorf("error on lock attempt %d: %w", i+1, err)
-		}
-
-		if locked {
+		err := r.distLocker.Lock(ctx, key, ttl)
+		if err == nil {
 			return true, nil
 		}
 
-		if i == lockMaxRetries-1 {
-			break
+		if err.Error() != distlock.ErrLockNotAcquired.Error() {
+			return false, fmt.Errorf("error on lock attempt %d: %w", i+1, err)
 		}
 
-		backoff *= 2
-		if backoff > lockMaxBackoff {
-			backoff = lockMaxBackoff
-		}
+		if i < lockMaxRetries-1 {
+			backoff *= 2
+			if backoff > lockMaxBackoff {
+				backoff = lockMaxBackoff
+			}
+			jitter := time.Duration(rand.Intn(100)) * time.Millisecond
+			waitTime := backoff + jitter
 
-		jitter := time.Duration(rand.Intn(100)) * time.Millisecond
-		waitTime := backoff + jitter
-
-		select {
-		case <-time.After(waitTime):
-		case <-ctx.Done():
-			return false, ctx.Err()
+			select {
+			case <-time.After(waitTime):
+			case <-ctx.Done():
+				return false, ctx.Err()
+			}
 		}
 	}
 
