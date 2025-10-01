@@ -35,6 +35,10 @@ func (u *MateHandler) Chat(c *gin.Context) {
 	output, errorCode, err := u.mateUseCase.Chat(ctx, req, userID)
 	if err != nil {
 		zap.L().Error("chat error", zap.Error(err))
+		if errorCode == response.ServerError {
+			u.mateUseCase.GetFallbackStrategy().Execute(c, "mate-service", err)
+			return
+		}
 		response.ErrorResponse(c, errorCode)
 		return
 	}

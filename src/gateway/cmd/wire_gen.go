@@ -9,9 +9,12 @@ package main
 import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/circuitbreaker"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/fallback"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/image"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/mate"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/middlewares"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/tts"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/user"
 	"net/http"
@@ -20,23 +23,26 @@ import (
 // Injectors from wire.go:
 
 func wireApp() *App {
+	ipRateLimiter := middlewares.NewDefaultIPRateLimiter()
 	imageRepo := data.NewImageRepo()
 	imageServiceClient := data.NewImageClient()
-	imageUseCase := biz.NewImageUsecase(imageRepo, imageServiceClient)
+	circuitBreakerManager := circuitbreaker.NewCircuitBreakerManager()
+	fallbackStrategy := fallback.FallbackStrategyProvider()
+	imageUseCase := biz.NewImageUsecase(imageRepo, imageServiceClient, circuitBreakerManager, fallbackStrategy)
 	imageHandler := image.NewImageHandler(imageUseCase)
 	userRepo := data.NewUserRepo()
 	userServiceClient := data.NewUserClient()
-	userUseCase := biz.NewUserUsecase(userRepo, userServiceClient)
+	userUseCase := biz.NewUserUsecase(userRepo, userServiceClient, circuitBreakerManager, fallbackStrategy)
 	userHandler := user.NewUserHandler(userUseCase)
 	ttsRepo := data.NewTTSRepo()
 	ttsServiceClient := data.NewTTSClient()
-	ttsUseCase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient)
+	ttsUseCase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient, circuitBreakerManager, fallbackStrategy)
 	ttsHandler := tts.NewTTSHandler(ttsUseCase)
 	mateRepo := data.NewMateRepo()
 	mateServiceClient := data.NewMateClient()
-	mateUseCase := biz.NewMateUsecase(mateRepo, mateServiceClient)
+	mateUseCase := biz.NewMateUsecase(mateRepo, mateServiceClient, circuitBreakerManager, fallbackStrategy)
 	mateHandler := mate.NewMateHandler(mateUseCase)
-	server := service.NewHTTPServer(imageHandler, userHandler, ttsHandler, mateHandler)
+	server := service.NewHTTPServer(ipRateLimiter, imageHandler, userHandler, ttsHandler, mateHandler)
 	app := NewApp(server)
 	return app
 }

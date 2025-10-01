@@ -17,14 +17,15 @@ import (
 )
 
 var ProviderSet = wire.NewSet(NewHTTPServer, user.NewUserHandler,
-	tts.NewTTSHandler, image.NewImageHandler, mate.NewMateHandler)
+	tts.NewTTSHandler, image.NewImageHandler, mate.NewMateHandler, middlewares.ProviderSet)
 
-func NewHTTPServer(imageHandler *image.ImageHandler, userHandler *user.UserHandler,
+func NewHTTPServer(rateLimiter *middlewares.IPRateLimiter, imageHandler *image.ImageHandler, userHandler *user.UserHandler,
 	ttsHandler *tts.TTSHandler, mateHandler *mate.MateHandler) *http.Server {
 	e := gin.New()
 	e.Use(gin.Logger(), gin.Recovery(), ginZap.Ginzap(zap.L(), time.RFC3339, false), ginZap.RecoveryWithZap(zap.L(), false))
 
 	e.Use(middlewares.Trace())
+	e.Use(middlewares.IPRateLimitMiddleware(rateLimiter))
 
 	app := e.Group("/api", middlewares.Cors(), middlewares.Auth())
 	{
