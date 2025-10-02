@@ -148,7 +148,7 @@ jobs:
           
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "env_tag=$ENV_TAG" >> $GITHUB_OUTPUT
-          echo "image_name=${{ secrets.DOCKER_REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}" >> $GITHUB_OUTPUT
+          echo "image_name=${{ secrets.DOCKER_REGISTRY }}/fl0rencess-doria/${{ matrix.service }}" >> $GITHUB_OUTPUT
 
       - name: 设置 Docker Buildx
         uses: docker/setup-buildx-action@v3
