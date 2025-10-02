@@ -19,13 +19,18 @@ const (
 	UserNotExistError
 	PasswordError
 
+	RateLimitError
+	DegradedError
+
 	NoError
 )
 
 var HttpCode = map[ErrorCode]int{
-	FormError:   400,
-	ServerError: 500,
-	AuthError:   401,
+	FormError:      400,
+	ServerError:    500,
+	AuthError:      401,
+	RateLimitError: 429,
+	DegradedError:  503,
 }
 
 var Message = map[ErrorCode]string{
@@ -40,6 +45,8 @@ var Message = map[ErrorCode]string{
 
 	UserNotExistError: "用户不存在",
 	PasswordError:     "密码错误",
+	RateLimitError:    "请求过于频繁",
+	DegradedError:     "服务暂时不可用",
 }
 
 func SuccessResponse(c *gin.Context, data any) {

@@ -13,6 +13,7 @@ import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/circuitbreaker"
 )
 
 type App struct {
@@ -31,5 +32,6 @@ func wireApp() *App {
 		service.ProviderSet,
 		biz.ProviderSet,
 		data.ProviderSet,
+		circuitbreaker.ProviderSet,
 	))
 }
