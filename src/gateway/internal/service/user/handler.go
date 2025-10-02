@@ -30,10 +30,6 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	resp, errorCode, err := h.userUseCase.Register(ctx, &req)
 	if err != nil {
-		if errorCode == response.ServerError {
-			h.userUseCase.GetFallbackStrategy().Execute(c, "user-service", err)
-			return
-		}
 		response.ErrorResponse(c, errorCode)
 		return
 	}
@@ -53,10 +49,6 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	resp, errorCode, err := h.userUseCase.Login(ctx, &req)
 	if err != nil {
-		if errorCode == response.ServerError {
-			h.userUseCase.GetFallbackStrategy().Execute(c, "user-service", err)
-			return
-		}
 		response.ErrorResponse(c, errorCode)
 		return
 	}

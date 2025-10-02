@@ -33,10 +33,6 @@ func (h *TTSHandler) SynthesizeSpeech(c *gin.Context) {
 
 	audioContent, errorCode, err := h.ttsUseCase.SynthesizeSpeech(ctx, text)
 	if err != nil {
-		if errorCode == response.ServerError {
-			h.ttsUseCase.GetFallbackStrategy().Execute(c, "tts-service", err)
-			return
-		}
 		response.ErrorResponse(c, errorCode)
 		return
 	}

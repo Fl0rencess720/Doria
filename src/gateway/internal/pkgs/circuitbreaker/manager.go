@@ -18,13 +18,13 @@ func NewCircuitBreakerManager() *CircuitBreakerManager {
 	}
 }
 
-func (m *CircuitBreakerManager) GetBreaker(serviceName string) *gobreaker.CircuitBreaker {
-	if breaker, exists := m.breakers[serviceName]; exists {
+func (m *CircuitBreakerManager) GetBreaker(key string) *gobreaker.CircuitBreaker {
+	if breaker, exists := m.breakers[key]; exists {
 		return breaker
 	}
 
 	settings := gobreaker.Settings{
-		Name:        serviceName,
+		Name:        key,
 		MaxRequests: 3,
 		Interval:    time.Second * 60,
 		Timeout:     time.Second * 60,
@@ -34,7 +34,7 @@ func (m *CircuitBreakerManager) GetBreaker(serviceName string) *gobreaker.Circui
 		},
 		OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
 			zap.L().Info("CircuitBreaker state changed",
-				zap.String("service", name),
+				zap.String("interface", name),
 				zap.String("from", from.String()),
 				zap.String("to", to.String()),
 			)
@@ -42,17 +42,17 @@ func (m *CircuitBreakerManager) GetBreaker(serviceName string) *gobreaker.Circui
 	}
 
 	breaker := gobreaker.NewCircuitBreaker(settings)
-	m.breakers[serviceName] = breaker
+	m.breakers[key] = breaker
 	return breaker
 }
 
-func (m *CircuitBreakerManager) CallWithBreaker(serviceName string, fn func() (any, error)) (any, error) {
-	breaker := m.GetBreaker(serviceName)
-	return breaker.Execute(fn)
-}
-
-func (m *CircuitBreakerManager) CallWithBreakerContext(ctx context.Context, serviceName string, fn func() (any, error)) (any, error) {
-	breaker := m.GetBreaker(serviceName)
+func (m *CircuitBreakerManager) Do(
+	ctx context.Context,
+	key string,
+	fn func(ctx context.Context) (any, error),
+	fallback func(ctx context.Context, err error) (any, error),
+) (any, error) {
+	breaker := m.GetBreaker(key)
 
 	wrappedFn := func() (any, error) {
 		select {
@@ -60,8 +60,16 @@ func (m *CircuitBreakerManager) CallWithBreakerContext(ctx context.Context, serv
 			return nil, ctx.Err()
 		default:
 		}
-		return fn()
+		return fn(ctx)
 	}
 
-	return breaker.Execute(wrappedFn)
+	result, err := breaker.Execute(wrappedFn)
+	if err != nil {
+		if fallback != nil {
+			return fallback(ctx, err)
+		}
+		return nil, err
+	}
+
+	return result, nil
 }

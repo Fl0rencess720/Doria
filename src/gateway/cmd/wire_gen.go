@@ -10,7 +10,6 @@ import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/data"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/circuitbreaker"
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/fallback"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/image"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/mate"
@@ -27,20 +26,19 @@ func wireApp() *App {
 	imageRepo := data.NewImageRepo()
 	imageServiceClient := data.NewImageClient()
 	circuitBreakerManager := circuitbreaker.NewCircuitBreakerManager()
-	fallbackStrategy := fallback.FallbackStrategyProvider()
-	imageUseCase := biz.NewImageUsecase(imageRepo, imageServiceClient, circuitBreakerManager, fallbackStrategy)
+	imageUseCase := biz.NewImageUsecase(imageRepo, imageServiceClient, circuitBreakerManager)
 	imageHandler := image.NewImageHandler(imageUseCase)
 	userRepo := data.NewUserRepo()
 	userServiceClient := data.NewUserClient()
-	userUseCase := biz.NewUserUsecase(userRepo, userServiceClient, circuitBreakerManager, fallbackStrategy)
+	userUseCase := biz.NewUserUsecase(userRepo, userServiceClient, circuitBreakerManager)
 	userHandler := user.NewUserHandler(userUseCase)
 	ttsRepo := data.NewTTSRepo()
 	ttsServiceClient := data.NewTTSClient()
-	ttsUseCase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient, circuitBreakerManager, fallbackStrategy)
+	ttsUseCase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient, circuitBreakerManager)
 	ttsHandler := tts.NewTTSHandler(ttsUseCase)
 	mateRepo := data.NewMateRepo()
 	mateServiceClient := data.NewMateClient()
-	mateUseCase := biz.NewMateUsecase(mateRepo, mateServiceClient, circuitBreakerManager, fallbackStrategy)
+	mateUseCase := biz.NewMateUsecase(mateRepo, mateServiceClient, circuitBreakerManager)
 	mateHandler := mate.NewMateHandler(mateUseCase)
 	server := service.NewHTTPServer(ipRateLimiter, imageHandler, userHandler, ttsHandler, mateHandler)
 	app := NewApp(server)

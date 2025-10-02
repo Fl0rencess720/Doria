@@ -32,10 +32,6 @@ func (u *ImageHandler) GenerateText(c *gin.Context) {
 	resp, errCode, err := u.imageUseCase.GenerateText(ctx, &req)
 	if err != nil {
 		zap.L().Error("generate text error", zap.Error(err))
-		if errCode == response.ServerError {
-			u.imageUseCase.GetFallbackStrategy().Execute(c, "image-service", err)
-			return
-		}
 		response.ErrorResponse(c, errCode)
 		return
 	}
