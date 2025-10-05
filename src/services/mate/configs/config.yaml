@@ -30,7 +30,7 @@ agent:
 
 mcp:
   rag:
-    url: http://localhost:8082/mcp/rag
+    url: http://doria-memory.doria.svc.cluster.local:8082/mcp/rag
 
 services:
   memory:
