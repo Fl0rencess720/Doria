@@ -3,7 +3,7 @@ name: Doria CI
 on:
   push:
     branches:
-      - deploy
+      - main
     paths:
       - 'src/**'
       - 'go.mod' 
