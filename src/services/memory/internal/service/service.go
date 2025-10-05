@@ -73,6 +73,7 @@ func NewMemoryService(serviceName string, memoryUseCase *biz.MemoryUseCase) *Mem
 }
 
 func (s *MemoryService) Start() error {
+	zap.L().Info("app start initing")
 	serviceID, err := s.registry.RegisterService(s.serviceName)
 	if err != nil {
 		return fmt.Errorf("failed to register service: %w", err)
