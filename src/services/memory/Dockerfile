@@ -21,5 +21,6 @@ COPY --from=builder /app/memory /app/memory
 COPY src/services/memory/configs /app/configs
 
 EXPOSE 9005
+EXPOSE 8082
 
 ENTRYPOINT ["/app/memory", "--config", "/app/configs"]
