@@ -1,0 +1,226 @@
+name: Doria CI
+
+on:
+  push:
+    branches:
+      - deploy
+    paths:
+      - 'src/**'
+      - 'go.mod' 
+      - 'go.sum'
+      - '.github/workflows/**'
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      gateway: ${{ steps.changes.outputs.gateway }}
+      image: ${{ steps.changes.outputs.image }}
+      mate: ${{ steps.changes.outputs.mate }}
+      memory: ${{ steps.changes.outputs.memory }}
+      tts: ${{ steps.changes.outputs.tts }}
+      user: ${{ steps.changes.outputs.user }}
+      common_changed: ${{ steps.changes.outputs.common_changed }}
+      services_to_build: ${{ steps.set-matrix.outputs.services }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          base: ${{ github.event.before }}
+          filters: |
+            common:
+              - 'src/common/**'
+              - 'src/consts/**'
+              - 'go.mod'
+              - 'go.sum'
+            gateway:
+              - 'src/gateway/**'
+            image:
+              - 'src/services/image/**'
+            mate:
+              - 'src/services/mate/**'
+            memory:
+              - 'src/services/memory/**'
+            tts:
+              - 'src/services/tts/**'
+            user:
+              - 'src/services/user/**'
+
+      - name: Set common changed flag
+        id: set-common
+        run: |
+          if [[ "${{ steps.changes.outputs.common }}" == "true" ]]; then
+            echo "common_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "common_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build service matrix
+        id: set-matrix
+        run: |
+          services=()
+          
+          if [[ "${{ steps.changes.outputs.common }}" == "true" ]]; then
+            services=("gateway" "image" "mate" "memory" "tts" "user")
+          else
+            [[ "${{ steps.changes.outputs.gateway }}" == "true" ]] && services+=("gateway")
+            [[ "${{ steps.changes.outputs.image }}" == "true" ]] && services+=("image")
+            [[ "${{ steps.changes.outputs.mate }}" == "true" ]] && services+=("mate")
+            [[ "${{ steps.changes.outputs.memory }}" == "true" ]] && services+=("memory")
+            [[ "${{ steps.changes.outputs.tts }}" == "true" ]] && services+=("tts")
+            [[ "${{ steps.changes.outputs.user }}" == "true" ]] && services+=("user")
+          fi
+          
+          if [ ${#services[@]} -eq 0 ]; then
+            echo "services=[]" >> $GITHUB_OUTPUT
+          else
+            json_array=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+            echo "services=$json_array" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Output change summary
+        run: |
+          echo "### Change Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Common Code | ${{ steps.changes.outputs.common == 'true' && 'Changed' || 'Unchanged' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gateway | ${{ steps.changes.outputs.gateway == 'true' && 'Changed' || 'Unchanged' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image Service | ${{ steps.changes.outputs.image == 'true' && 'Changed' || 'Unchanged' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Mate Service | ${{ steps.changes.outputs.mate == 'true' && 'Changed' || 'Unchanged' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Memory Service | ${{ steps.changes.outputs.memory == 'true' && 'Changed' || 'Unchanged' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TTS Service | ${{ steps.changes.outputs.tts == 'true' && 'Changed' || 'Unchanged' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| User Service | ${{ steps.changes.outputs.user == 'true' && 'Changed' || 'Unchanged' }} |" >> $GITHUB_STEP_SUMMARY
+
+  build-and-push:
+    name: Build Image
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services_to_build != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services_to_build) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set service path
+        id: set-path
+        run: |
+          if [[ "${{ matrix.service }}" == "gateway" ]]; then
+            echo "dockerfile_path=src/gateway/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context_path=." >> $GITHUB_OUTPUT
+          else
+            echo "dockerfile_path=src/services/${{ matrix.service }}/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context_path=." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set image tags
+        id: meta
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "image_name=${{ secrets.DOCKER_REGISTRY }}/fl0rencess-doria/${{ matrix.service }}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          logout: true
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.set-path.outputs.context_path }}
+          file: ${{ steps.set-path.outputs.dockerfile_path }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.short_sha }}
+            ${{ steps.meta.outputs.image_name }}:latest
+          labels: |
+            org.opencontainers.image.title=${{ matrix.service }}
+            org.opencontainers.image.description=${{ matrix.service }} service
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Output image info
+        run: |
+          echo "### Image built successfully: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image tags:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ steps.meta.outputs.image_name }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Git SHA:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+  
+  build-summary:
+    name: Build Summary
+    needs: [detect-changes, build-and-push]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Generate build summary
+        run: |
+          echo "## CI Pipeline Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.detect-changes.outputs.services_to_build }}" == "[]" ]]; then
+            echo "No services to build" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Built Services" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '${{ needs.detect-changes.outputs.services_to_build }}' | jq -r '.[]' | while read service; do
+              echo "- $service" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+  trigger-deployment:
+    name: Trigger Deployment
+    needs: [detect-changes, build-and-push]
+    if: needs.build-and-push.result == 'success' && needs.detect-changes.outputs.services_to_build != '[]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prepare Trigger Inputs
+        id: prep_inputs
+        run: |
+          echo "short_sha=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          SERVICES=$(echo '${{ needs.detect-changes.outputs.services_to_build }}' | jq -r 'join(",")')
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+
+      - name: Trigger Deployment Workflow
+        uses: InformaticsMatters/trigger-ci-action@1.0.1
+        with:
+          ci-owner: ${{ github.repository_owner }}
+          ci-repository: Doria-kustomize
+          ci-ref: refs/heads/main
+          ci-user: ${{ github.repository_owner }}
+          ci-user-token: ${{ secrets.PAT_FOR_CONFIG_REPO }}
+          ci-name: Update Kustomize Image Tags 
+          ci-inputs: >-
+            tag=${{ steps.prep_inputs.outputs.short_sha }}
+            services=${{ steps.prep_inputs.outputs.services }}
+      
