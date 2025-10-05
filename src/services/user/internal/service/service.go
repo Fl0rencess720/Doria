@@ -25,7 +25,7 @@ type UserService struct {
 	userapi.UnimplementedUserServiceServer
 	serviceName string
 	serviceID   string
-	registry    *registry.ConsulClient
+	registry    *registry.RegistrationManager
 	server      *grpc.Server
 	listener    net.Listener
 
@@ -54,14 +54,11 @@ func NewUserService(serviceName string, userUseCase *biz.UserUseCase) *UserServi
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 
-	registry, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))
-	if err != nil {
-		panic(err)
-	}
+	registrationManager := registry.NewRegistrationManager()
 
 	s := &UserService{
 		serviceName: serviceName,
-		registry:    registry,
+		registry:    registrationManager,
 		server:      server,
 		listener:    lis,
 		userUseCase: userUseCase,

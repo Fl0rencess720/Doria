@@ -25,7 +25,7 @@ type ImageService struct {
 	imageapi.UnimplementedImageServiceServer
 	serviceName string
 	serviceID   string
-	registry    *registry.ConsulClient
+	registry    *registry.RegistrationManager
 	server      *grpc.Server
 	listener    net.Listener
 
@@ -54,12 +54,9 @@ func NewImageService(serviceName string, imageUseCase *biz.ImageUseCase) *ImageS
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 
-	registry, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))
-	if err != nil {
-		panic(err)
-	}
+	registrationManager := registry.NewRegistrationManager()
 
-	s := &ImageService{serviceName: serviceName, registry: registry, server: server, listener: lis,
+	s := &ImageService{serviceName: serviceName, registry: registrationManager, server: server, listener: lis,
 		imageUseCase: imageUseCase}
 
 	imageapi.RegisterImageServiceServer(server, s)

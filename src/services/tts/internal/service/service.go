@@ -25,7 +25,7 @@ type TTSService struct {
 	ttsapi.UnimplementedTTSServiceServer
 	serviceName string
 	serviceID   string
-	registry    *registry.ConsulClient
+	registry    *registry.RegistrationManager
 	server      *grpc.Server
 	listener    net.Listener
 
@@ -54,14 +54,11 @@ func NewTTSService(serviceName string, ttsUseCase *biz.TTSUseCase) *TTSService {
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 
-	registry, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))
-	if err != nil {
-		panic(err)
-	}
+	registrationManager := registry.NewRegistrationManager()
 
 	s := &TTSService{
 		serviceName: serviceName,
-		registry:    registry,
+		registry:    registrationManager,
 		server:      server,
 		listener:    lis,
 		ttsUseCase:  ttsUseCase,

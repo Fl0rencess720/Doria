@@ -71,17 +71,14 @@ func main() {
 }
 
 func registerService(serviceName string) error {
-	consulClient, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))
-	if err != nil {
-		return err
-	}
-	serviceID, err := consulClient.RegisterService(serviceName)
+	registrationManager := registry.NewRegistrationManager()
+	serviceID, err := registrationManager.RegisterService(serviceName)
 	if err != nil {
 		return err
 	}
 	ID = serviceID
 
-	go consulClient.SetTTLHealthCheck()
+	go registrationManager.SetTTLHealthCheck()
 	return nil
 }
 
