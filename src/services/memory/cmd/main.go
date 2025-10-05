@@ -18,7 +18,7 @@ import (
 )
 
 func init() {
-	log.Panicln("init memory service")
+	log.Println("init memory service")
 	flag.Parse()
 	conf.Init()
 
