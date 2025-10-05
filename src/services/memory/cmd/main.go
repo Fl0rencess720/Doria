@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 
 	"github.com/Fl0rencess720/Doria/src/common/conf"
 	"github.com/Fl0rencess720/Doria/src/common/logging"
@@ -18,7 +17,6 @@ import (
 )
 
 func init() {
-	log.Println("init memory service")
 	flag.Parse()
 	conf.Init()
 
@@ -29,8 +27,6 @@ func init() {
 }
 
 func main() {
-	zap.L().Info("Starting memory service")
-
 	tp, err := tracing.SetTraceProvider(configs.GetServiceName())
 	if err != nil {
 		zap.L().Panic("tracing init err: %s", zap.Error(err))
@@ -41,8 +37,6 @@ func main() {
 		}
 	}()
 
-	zap.L().Info("tracing init success")
-
 	cbh, flusher := langfuse.NewLangfuseHandler(&langfuse.Config{
 		Host:      "https://cloud.langfuse.com",
 		PublicKey: viper.GetString("LANGFUSE_PUBLIC_KEY"),
@@ -52,22 +46,14 @@ func main() {
 
 	callbacks.AppendGlobalHandlers(cbh)
 
-	zap.L().Info("langfuse init success")
-
 	app := wireApp()
 	if err := app.Server.Start(); err != nil {
 		zap.L().Panic("Failed to start service", zap.Error(err))
 	}
 
-	zap.L().Info("app init success")
-
 	app.MCPServer.Start()
 
-	zap.L().Info("mcp init success")
-
 	app.Server.WaitForShutdown()
-
-	zap.L().Info("server init success")
 
 	if err := app.Server.Stop(); err != nil {
 		zap.L().Error("Error stopping service", zap.Error(err))

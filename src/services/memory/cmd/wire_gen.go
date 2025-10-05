@@ -14,7 +14,6 @@ import (
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/distlock"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/data/rag"
 	"github.com/Fl0rencess720/Doria/src/services/memory/internal/service"
-	"go.uber.org/zap"
 )
 
 // Injectors from wire.go:
@@ -26,9 +25,7 @@ func wireApp() *App {
 	client := data.NewRedis()
 	locker := distlock.NewRedisLocker(client)
 	embedder := rag.NewEmbedder()
-	zap.L().Info("before new memory retriever")
 	memoryRetriever := data.NewMemoryRetriever(embedder)
-	zap.L().Info("after new memory retriever")
 	memoryRepo := data.NewMemoryRepo(kafkaClient, db, client, locker, memoryRetriever)
 	llmAgent := agent.NewAgent()
 	memoryUseCase := biz.NewMemoryUseCase(memoryRepo, llmAgent)
