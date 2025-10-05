@@ -37,7 +37,6 @@ func (dm *DiscoveryManager) CreateGrpcConnection(ctx context.Context, serviceNam
 	return dm.discovery.CreateGrpcConnection(ctx, serviceName, opts...)
 }
 
-// ConsulDiscovery implements ServiceDiscovery for Consul
 type ConsulDiscovery struct {
 	consulAddr string
 }
@@ -49,7 +48,6 @@ func NewConsulDiscovery() *ConsulDiscovery {
 }
 
 func (cd *ConsulDiscovery) CreateGrpcConnection(ctx context.Context, serviceName string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	// Map service names to Consul service names
 	consulServiceName := cd.getConsulServiceName(serviceName)
 	address := fmt.Sprintf("consul://%s/%s?wait=30s", cd.consulAddr, consulServiceName)
 
@@ -62,7 +60,6 @@ func (cd *ConsulDiscovery) CreateGrpcConnection(ctx context.Context, serviceName
 }
 
 func (cd *ConsulDiscovery) getConsulServiceName(serviceName string) string {
-	// Map K8s service names to Consul service names
 	serviceMap := map[string]string{
 		"doria-gateway": "gateway-service",
 		"doria-user":    viper.GetString("services.user.name"),

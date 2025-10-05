@@ -5,7 +5,7 @@ import (
 
 	"github.com/Fl0rencess720/Doria/src/common/registry"
 	memoryapi "github.com/Fl0rencess720/Doria/src/rpc/memory"
-	_ "github.com/mbobakov/grpc-consul-resolver" // Keep for backward compatibility
+	_ "github.com/mbobakov/grpc-consul-resolver"
 	"go.uber.org/zap"
 )
 
