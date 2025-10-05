@@ -19,19 +19,17 @@ type K8sDiscovery struct {
 func NewK8sDiscovery() *K8sDiscovery {
 	namespace := viper.GetString("K8S_NAMESPACE")
 	if namespace == "" {
-		namespace = "doria" // Default namespace
+		namespace = "doria"
 	}
 	return &K8sDiscovery{
 		namespace: namespace,
 	}
 }
 
-// GetServiceAddress returns the Kubernetes DNS address for a service
 func (k *K8sDiscovery) GetServiceAddress(serviceName string) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local:%d", serviceName, k.namespace, k.getServicePort(serviceName))
 }
 
-// getServicePort returns the default port for each service based on your K8s setup
 func (k *K8sDiscovery) getServicePort(serviceName string) int {
 	ports := map[string]int{
 		"doria-gateway": 8000,
@@ -45,10 +43,9 @@ func (k *K8sDiscovery) getServicePort(serviceName string) int {
 	if port, exists := ports[serviceName]; exists {
 		return port
 	}
-	return 8080 // Default port
+	return 8080
 }
 
-// CreateGrpcConnection creates a gRPC connection to a service using Kubernetes DNS
 func (k *K8sDiscovery) CreateGrpcConnection(ctx context.Context, serviceName string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	kacp := keepalive.ClientParameters{
 		Time:                10 * time.Second,
@@ -72,7 +69,6 @@ func (k *K8sDiscovery) CreateGrpcConnection(ctx context.Context, serviceName str
 	return grpc.NewClient(address, opts...)
 }
 
-// IsEnabled returns true if Kubernetes DNS discovery is enabled
 func (k *K8sDiscovery) IsEnabled() bool {
 	return viper.GetBool("USE_K8S_DNS")
 }

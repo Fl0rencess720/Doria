@@ -47,8 +47,6 @@ func (rm *RegistrationManager) DeregisterService(serviceID string) error {
 	return rm.registrar.DeregisterService(serviceID)
 }
 
-// NoOpRegistrar implements ServiceRegistrar interface but does nothing
-// Used when Kubernetes DNS is enabled
 type NoOpRegistrar struct{}
 
 func (nr *NoOpRegistrar) RegisterService(serviceName string) (string, error) {
