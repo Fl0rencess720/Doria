@@ -25,7 +25,7 @@ type MemoryService struct {
 	memoryapi.UnimplementedMemoryServiceServer
 	serviceName string
 	serviceID   string
-	registry    *registry.ConsulClient
+	registry    *registry.RegistrationManager
 	server      *grpc.Server
 	listener    net.Listener
 
@@ -55,14 +55,11 @@ func NewMemoryService(serviceName string, memoryUseCase *biz.MemoryUseCase) *Mem
 		grpc.KeepaliveParams(kasp),
 	)
 
-	registry, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))
-	if err != nil {
-		panic(err)
-	}
+	registrationManager := registry.NewRegistrationManager()
 
 	s := &MemoryService{
 		serviceName:   serviceName,
-		registry:      registry,
+		registry:      registrationManager,
 		server:        server,
 		listener:      lis,
 		memoryUseCase: memoryUseCase,

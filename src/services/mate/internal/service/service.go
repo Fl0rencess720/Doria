@@ -25,7 +25,7 @@ type MateService struct {
 	mateapi.UnimplementedMateServiceServer
 	serviceName string
 	serviceID   string
-	registry    *registry.ConsulClient
+	registry    *registry.RegistrationManager
 	server      *grpc.Server
 	listener    net.Listener
 
@@ -54,14 +54,11 @@ func NewMateService(serviceName string, mateUseCase *biz.MateUseCase) *MateServi
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	)
 
-	registry, err := registry.NewConsulClient(viper.GetString("CONSUL_ADDR"))
-	if err != nil {
-		panic(err)
-	}
+	registrationManager := registry.NewRegistrationManager()
 
 	s := &MateService{
 		serviceName: serviceName,
-		registry:    registry,
+		registry:    registrationManager,
 		server:      server,
 		listener:    lis,
 		mateUseCase: mateUseCase,
