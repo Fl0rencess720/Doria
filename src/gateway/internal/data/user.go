@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type UserRepo struct {
@@ -26,6 +27,7 @@ func NewUserClient() userapi.UserServiceClient {
 		context.Background(),
 		"doria-user",
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		zap.L().Panic("new grpc client failed", zap.Error(err))
