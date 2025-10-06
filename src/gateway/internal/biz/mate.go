@@ -57,3 +57,43 @@ func (u *mateUseCase) Chat(ctx context.Context, req *models.ChatReq, userID int)
 		return "", response.ServerError, fmt.Errorf("unexpected response type")
 	}
 }
+
+func (u *mateUseCase) GetUserPages(ctx context.Context, userID int) ([]models.PageResp, response.ErrorCode, error) {
+	result, err := u.circuitBreaker.Do(ctx, "mate-service.GetUserPages",
+		func(ctx context.Context) (any, error) {
+			return u.mateClient.GetUserPages(ctx, &mateapi.GetUserPagesRequest{
+				UserId: int32(userID),
+			})
+		},
+		func(ctx context.Context, err error) (any, error) {
+			zap.L().Error("mate GetUserPages fallback triggered", zap.Error(err))
+			return []models.PageResp{}, nil
+		},
+	)
+
+	if err != nil {
+		zap.L().Error("GetUserPages error", zap.Error(err))
+		return nil, response.ServerError, err
+	}
+
+	switch v := result.(type) {
+	case *mateapi.GetUserPagesResponse:
+		pages := make([]models.PageResp, len(v.Pages))
+		for i, page := range v.Pages {
+			pages[i] = models.PageResp{
+				ID:          uint(page.Id),
+				UserID:      uint(page.UserId),
+				SegmentID:   uint(page.SegmentId),
+				UserInput:   page.UserInput,
+				AgentOutput: page.AgentOutput,
+				Status:      page.Status,
+				CreateTime:  page.CreateTime,
+			}
+		}
+		return pages, response.NoError, nil
+	case []models.PageResp:
+		return v, response.DegradedError, nil
+	default:
+		return nil, response.ServerError, fmt.Errorf("unexpected response type")
+	}
+}

@@ -41,3 +41,28 @@ func (s *MateService) Chat(ctx context.Context, req *mateapi.ChatRequest) (*mate
 
 // 	return resp, nil
 // }
+
+func (s *MateService) GetUserPages(ctx context.Context, req *mateapi.GetUserPagesRequest) (*mateapi.GetUserPagesResponse, error) {
+	pages, err := s.mateUseCase.GetUserPages(ctx, uint(req.UserId))
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &mateapi.GetUserPagesResponse{
+		Pages: make([]*mateapi.Page, len(pages)),
+	}
+
+	for i, page := range pages {
+		resp.Pages[i] = &mateapi.Page{
+			Id:          uint32(page.ID),
+			UserId:      uint32(page.UserID),
+			SegmentId:   uint32(page.SegmentID),
+			UserInput:   page.UserInput,
+			AgentOutput: page.AgentOutput,
+			Status:      page.Status,
+			CreateTime:  page.CreatedAt.Unix(),
+		}
+	}
+
+	return resp, nil
+}

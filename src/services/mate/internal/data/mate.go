@@ -78,3 +78,12 @@ func (r *mateRepo) SendMemorySignal(ctx context.Context, userID uint) error {
 
 	return nil
 }
+
+func (r *mateRepo) GetUserPages(ctx context.Context, userID uint) ([]*models.Page, error) {
+	var pages []*models.Page
+	err := r.pg.WithContext(ctx).Where("user_id = ?", userID).Find(&pages).Error
+	if err != nil {
+		return nil, err
+	}
+	return pages, nil
+}

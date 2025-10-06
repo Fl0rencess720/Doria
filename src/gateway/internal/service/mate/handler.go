@@ -41,3 +41,18 @@ func (u *MateHandler) Chat(c *gin.Context) {
 
 	response.SuccessResponse(c, output)
 }
+
+func (u *MateHandler) GetUserPages(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	userID := c.GetInt(string(middlewares.UserIDKey))
+
+	pages, errorCode, err := u.mateUseCase.GetUserPages(ctx, userID)
+	if err != nil {
+		zap.L().Error("GetUserPages error", zap.Error(err))
+		response.ErrorResponse(c, errorCode)
+		return
+	}
+
+	response.SuccessResponse(c, pages)
+}

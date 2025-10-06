@@ -11,6 +11,7 @@ import (
 type MateRepo interface {
 	SavePage(ctx context.Context, page *models.Page) error
 	SendMemorySignal(ctx context.Context, userID uint) error
+	GetUserPages(ctx context.Context, userID uint) ([]*models.Page, error)
 }
 
 type MateUseCase struct {
@@ -95,6 +96,10 @@ func (u *MateUseCase) Chat(ctx context.Context, req *ChatReq) (string, error) {
 	}
 
 	return result.Content, nil
+}
+
+func (u *MateUseCase) GetUserPages(ctx context.Context, userID uint) ([]*models.Page, error) {
+	return u.repo.GetUserPages(ctx, userID)
 }
 
 // func (u *MateUseCase) GetChatHistory(ctx context.Context, userID uint) ([]*models.Page, error) {
