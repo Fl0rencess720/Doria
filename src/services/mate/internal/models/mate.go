@@ -27,3 +27,20 @@ type Page struct {
 type MateMessage struct {
 	UserID uint `json:"user_id"`
 }
+
+type GetUserPagesRequest struct {
+	UserID   uint
+	Cursor   string
+	PageSize int
+}
+
+type GetUserPagesResponse struct {
+	Pages     []*Page
+	NextCursor string
+	HasMore   bool
+}
+
+type CursorData struct {
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+}

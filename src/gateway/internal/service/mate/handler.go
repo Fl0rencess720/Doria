@@ -1,6 +1,8 @@
 package mate
 
 import (
+	"strconv"
+
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/models"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
@@ -40,4 +42,34 @@ func (u *MateHandler) Chat(c *gin.Context) {
 	}
 
 	response.SuccessResponse(c, output)
+}
+
+func (u *MateHandler) GetUserPages(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	userID := c.GetInt(string(middlewares.UserIDKey))
+
+	req := &models.GetUserPagesRequest{
+		UserID:   userID,
+		Cursor:   c.Query("cursor"),
+		PageSize: 20,
+	}
+
+	if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
+		if pageSize, err := strconv.Atoi(pageSizeStr); err == nil && pageSize > 0 {
+			req.PageSize = pageSize
+			if pageSize > 100 {
+				req.PageSize = 100
+			}
+		}
+	}
+
+	pages, errorCode, err := u.mateUseCase.GetUserPages(ctx, req)
+	if err != nil {
+		zap.L().Error("GetUserPages error", zap.Error(err))
+		response.ErrorResponse(c, errorCode)
+		return
+	}
+
+	response.SuccessResponse(c, pages)
 }

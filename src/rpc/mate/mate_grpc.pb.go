@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	MateService_Chat_FullMethodName                    = "/mate.MateService/Chat"
 	MateService_GetConversationMessages_FullMethodName = "/mate.MateService/GetConversationMessages"
+	MateService_GetUserPages_FullMethodName            = "/mate.MateService/GetUserPages"
 )
 
 // MateServiceClient is the client API for MateService service.
@@ -29,6 +30,7 @@ const (
 type MateServiceClient interface {
 	Chat(ctx context.Context, in *ChatRequest, opts ...grpc.CallOption) (*ChatResponse, error)
 	GetConversationMessages(ctx context.Context, in *GetConversationMessagesRequest, opts ...grpc.CallOption) (*GetConversationMessagesResponse, error)
+	GetUserPages(ctx context.Context, in *GetUserPagesRequest, opts ...grpc.CallOption) (*GetUserPagesResponse, error)
 }
 
 type mateServiceClient struct {
@@ -59,12 +61,23 @@ func (c *mateServiceClient) GetConversationMessages(ctx context.Context, in *Get
 	return out, nil
 }
 
+func (c *mateServiceClient) GetUserPages(ctx context.Context, in *GetUserPagesRequest, opts ...grpc.CallOption) (*GetUserPagesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserPagesResponse)
+	err := c.cc.Invoke(ctx, MateService_GetUserPages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MateServiceServer is the server API for MateService service.
 // All implementations must embed UnimplementedMateServiceServer
 // for forward compatibility.
 type MateServiceServer interface {
 	Chat(context.Context, *ChatRequest) (*ChatResponse, error)
 	GetConversationMessages(context.Context, *GetConversationMessagesRequest) (*GetConversationMessagesResponse, error)
+	GetUserPages(context.Context, *GetUserPagesRequest) (*GetUserPagesResponse, error)
 	mustEmbedUnimplementedMateServiceServer()
 }
 
@@ -80,6 +93,9 @@ func (UnimplementedMateServiceServer) Chat(context.Context, *ChatRequest) (*Chat
 }
 func (UnimplementedMateServiceServer) GetConversationMessages(context.Context, *GetConversationMessagesRequest) (*GetConversationMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetConversationMessages not implemented")
+}
+func (UnimplementedMateServiceServer) GetUserPages(context.Context, *GetUserPagesRequest) (*GetUserPagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserPages not implemented")
 }
 func (UnimplementedMateServiceServer) mustEmbedUnimplementedMateServiceServer() {}
 func (UnimplementedMateServiceServer) testEmbeddedByValue()                     {}
@@ -138,6 +154,24 @@ func _MateService_GetConversationMessages_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MateService_GetUserPages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserPagesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MateServiceServer).GetUserPages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MateService_GetUserPages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MateServiceServer).GetUserPages(ctx, req.(*GetUserPagesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MateService_ServiceDesc is the grpc.ServiceDesc for MateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +186,10 @@ var MateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetConversationMessages",
 			Handler:    _MateService_GetConversationMessages_Handler,
+		},
+		{
+			MethodName: "GetUserPages",
+			Handler:    _MateService_GetUserPages_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

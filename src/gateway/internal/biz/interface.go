@@ -23,4 +23,5 @@ type ImageUseCase interface {
 
 type MateUseCase interface {
 	Chat(ctx context.Context, req *models.ChatReq, userID int) (string, response.ErrorCode, error)
+	GetUserPages(ctx context.Context, req *models.GetUserPagesRequest) (*models.GetUserPagesResponse, response.ErrorCode, error)
 }

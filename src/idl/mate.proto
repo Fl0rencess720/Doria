@@ -4,9 +4,10 @@ package mate;
 
 option go_package = "rpc/mate";
 
-service MateService {  
+service MateService {
     rpc Chat(ChatRequest) returns (ChatResponse);
     rpc GetConversationMessages(GetConversationMessagesRequest) returns (GetConversationMessagesResponse);
+    rpc GetUserPages(GetUserPagesRequest) returns (GetUserPagesResponse);
 }
 
 message ChatRequest {
@@ -30,4 +31,26 @@ message GetConversationMessagesRequest {
 
 message GetConversationMessagesResponse {
     repeated Message messages = 1;
+}
+
+message Page {
+    uint32 id = 1;
+    uint32 user_id = 2;
+    uint32 segment_id = 3;
+    string user_input = 4;
+    string agent_output = 5;
+    string status = 6;
+    int64 create_time = 7;
+}
+
+message GetUserPagesRequest {
+    int32 user_id = 1;
+    string cursor = 2;
+    int32 page_size = 3;
+}
+
+message GetUserPagesResponse {
+    repeated Page pages = 1;
+    string next_cursor = 2;
+    bool has_more = 3;
 }

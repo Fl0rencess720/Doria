@@ -5,6 +5,7 @@ import (
 
 	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/biz"
+	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
 )
 
 func (s *MateService) Chat(ctx context.Context, req *mateapi.ChatRequest) (*mateapi.ChatResponse, error) {
@@ -21,23 +22,33 @@ func (s *MateService) Chat(ctx context.Context, req *mateapi.ChatRequest) (*mate
 	}, nil
 }
 
-// func (s *MateService) GetConversationMessages(ctx context.Context, req *mateapi.GetConversationMessagesRequest) (*mateapi.GetConversationMessagesResponse, error) {
-// 	messages, err := s.mateUseCase.GetChatHistory(ctx, uint(req.UserId))
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func (s *MateService) GetUserPages(ctx context.Context, req *mateapi.GetUserPagesRequest) (*mateapi.GetUserPagesResponse, error) {
+	pagesResp, err := s.mateUseCase.GetUserPages(ctx, &models.GetUserPagesRequest{
+		UserID:   uint(req.UserId),
+		Cursor:   req.Cursor,
+		PageSize: int(req.PageSize),
+	})
+	if err != nil {
+		return nil, err
+	}
 
-// 	resp := &mateapi.GetConversationMessagesResponse{
-// 		Messages: make([]*mateapi.Message, len(messages)),
-// 	}
+	resp := &mateapi.GetUserPagesResponse{
+		Pages:      make([]*mateapi.Page, len(pagesResp.Pages)),
+		NextCursor: pagesResp.NextCursor,
+		HasMore:    pagesResp.HasMore,
+	}
 
-// 	for i, msg := range messages {
-// 		resp.Messages[i] = &mateapi.Message{
-// 			Role:       msg.Role,
-// 			Content:    msg.Content.Text,
-// 			CreateTime: msg.CreatedAt.Unix(),
-// 		}
-// 	}
+	for i, page := range pagesResp.Pages {
+		resp.Pages[i] = &mateapi.Page{
+			Id:          uint32(page.ID),
+			UserId:      uint32(page.UserID),
+			SegmentId:   uint32(page.SegmentID),
+			UserInput:   page.UserInput,
+			AgentOutput: page.AgentOutput,
+			Status:      page.Status,
+			CreateTime:  page.CreatedAt.Unix(),
+		}
+	}
 
-// 	return resp, nil
-// }
+	return resp, nil
+}
