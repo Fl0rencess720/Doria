@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -79,11 +80,74 @@ func (r *mateRepo) SendMemorySignal(ctx context.Context, userID uint) error {
 	return nil
 }
 
-func (r *mateRepo) GetUserPages(ctx context.Context, userID uint) ([]*models.Page, error) {
+func (r *mateRepo) GetUserPages(ctx context.Context, req *models.GetUserPagesRequest) (*models.GetUserPagesResponse, error) {
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
 	var pages []*models.Page
-	err := r.pg.WithContext(ctx).Where("user_id = ?", userID).Find(&pages).Error
+	query := r.pg.WithContext(ctx).Where("user_id = ?", req.UserID).Order("created_at DESC, id DESC")
+
+	if req.Cursor != "" {
+		cursorData, err := r.decodeCursor(req.Cursor)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", err)
+		}
+		query = query.Where("(created_at < ? OR (created_at = ? AND id < ?))",
+			cursorData.CreatedAt, cursorData.CreatedAt, cursorData.ID)
+	}
+
+	err := query.Limit(pageSize + 1).Find(&pages).Error
 	if err != nil {
 		return nil, err
 	}
-	return pages, nil
+
+	hasMore := len(pages) > pageSize
+	if hasMore {
+		pages = pages[:pageSize]
+	}
+
+	var nextCursor string
+	if len(pages) > 0 && hasMore {
+		lastPage := pages[len(pages)-1]
+		cursorData := models.CursorData{
+			ID:        lastPage.ID,
+			CreatedAt: lastPage.CreatedAt,
+		}
+		nextCursor, err = r.encodeCursor(cursorData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode next cursor: %w", err)
+		}
+	}
+
+	return &models.GetUserPagesResponse{
+		Pages:      pages,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
+func (r *mateRepo) encodeCursor(data models.CursorData) (string, error) {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(jsonData), nil
+}
+
+func (r *mateRepo) decodeCursor(cursor string) (models.CursorData, error) {
+	jsonData, err := base64.URLEncoding.DecodeString(cursor)
+	if err != nil {
+		return models.CursorData{}, err
+	}
+	var data models.CursorData
+	err = json.Unmarshal(jsonData, &data)
+	if err != nil {
+		return models.CursorData{}, err
+	}
+	return data, nil
 }

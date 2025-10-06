@@ -45,8 +45,12 @@ message Page {
 
 message GetUserPagesRequest {
     int32 user_id = 1;
+    string cursor = 2;
+    int32 page_size = 3;
 }
 
 message GetUserPagesResponse {
     repeated Page pages = 1;
+    string next_cursor = 2;
+    bool has_more = 3;
 }

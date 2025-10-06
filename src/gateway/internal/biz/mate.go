@@ -58,16 +58,22 @@ func (u *mateUseCase) Chat(ctx context.Context, req *models.ChatReq, userID int)
 	}
 }
 
-func (u *mateUseCase) GetUserPages(ctx context.Context, userID int) ([]models.PageResp, response.ErrorCode, error) {
+func (u *mateUseCase) GetUserPages(ctx context.Context, req *models.GetUserPagesRequest) (*models.GetUserPagesResponse, response.ErrorCode, error) {
 	result, err := u.circuitBreaker.Do(ctx, "mate-service.GetUserPages",
 		func(ctx context.Context) (any, error) {
 			return u.mateClient.GetUserPages(ctx, &mateapi.GetUserPagesRequest{
-				UserId: int32(userID),
+				UserId:   int32(req.UserID),
+				Cursor:   req.Cursor,
+				PageSize: int32(req.PageSize),
 			})
 		},
 		func(ctx context.Context, err error) (any, error) {
 			zap.L().Error("mate GetUserPages fallback triggered", zap.Error(err))
-			return []models.PageResp{}, nil
+			return &models.GetUserPagesResponse{
+				Pages:      []models.PageResp{},
+				NextCursor: "",
+				HasMore:    false,
+			}, nil
 		},
 	)
 
@@ -90,8 +96,12 @@ func (u *mateUseCase) GetUserPages(ctx context.Context, userID int) ([]models.Pa
 				CreateTime:  page.CreateTime,
 			}
 		}
-		return pages, response.NoError, nil
-	case []models.PageResp:
+		return &models.GetUserPagesResponse{
+			Pages:      pages,
+			NextCursor: v.NextCursor,
+			HasMore:    v.HasMore,
+		}, response.NoError, nil
+	case *models.GetUserPagesResponse:
 		return v, response.DegradedError, nil
 	default:
 		return nil, response.ServerError, fmt.Errorf("unexpected response type")

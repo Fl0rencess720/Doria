@@ -13,3 +13,15 @@ type PageResp struct {
 	Status      string `json:"status"`
 	CreateTime  int64  `json:"create_time"`
 }
+
+type GetUserPagesRequest struct {
+	UserID   int    `json:"user_id"`
+	Cursor   string `json:"cursor"`
+	PageSize int    `json:"page_size"`
+}
+
+type GetUserPagesResponse struct {
+	Pages      []PageResp `json:"pages"`
+	NextCursor string     `json:"next_cursor"`
+	HasMore    bool       `json:"has_more"`
+}
