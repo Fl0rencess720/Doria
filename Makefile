@@ -16,8 +16,7 @@ help:
 	@echo "Available targets:"
 	@echo "  gateway   - Run gateway service"
 	@echo "  image     - Run image service"
-	@echo "  chat     - Run chat service"
-	@echo "  user     - Run user service"
+		@echo "  user     - Run user service"
 	@echo "  tts     - Run tts service"
 	@echo "  mate     - Run mate service"
 	@echo "  memory     - Run memory service"
@@ -25,21 +24,18 @@ help:
 	@echo "Examples:"
 	@echo "  make run gateway"
 	@echo "  make run image"
-	@echo "  make run chat"
-	@echo "  make run user"
+		@echo "  make run user"
 	@echo "  make run tts"
 	@echo "  make run mate"
 	@echo "  make run memory"
 
-.PHONY: gateway image chat user tts mate memory
+.PHONY: gateway image user tts mate memory
 gateway:
 	@go run src/gateway/cmd/main.go src/gateway/cmd/wire_gen.go --config src/gateway/configs
 
 image:
 	@go run src/services/image/cmd/main.go src/services/image/cmd/wire_gen.go --config src/services/image/configs
 
-chat:
-	@go run src/services/chat/cmd/main.go src/services/chat/cmd/wire_gen.go --config src/services/chat/configs
 user:
 	@go run src/services/user/cmd/main.go src/services/user/cmd/wire_gen.go --config src/services/user/configs
 tts:
