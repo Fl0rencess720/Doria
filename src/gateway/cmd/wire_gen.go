@@ -14,6 +14,7 @@ import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/image"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/mate"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/middlewares"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/signaling"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/tts"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/user"
 	"net/http"
@@ -40,7 +41,10 @@ func wireApp() *App {
 	mateServiceClient := data.NewMateClient()
 	mateUseCase := biz.NewMateUsecase(mateRepo, mateServiceClient, circuitBreakerManager)
 	mateHandler := mate.NewMateHandler(mateUseCase)
-	server := service.NewHTTPServer(ipRateLimiter, imageHandler, userHandler, ttsHandler, mateHandler)
+	signalingRepo := data.NewSignalingRepo()
+	signalingUseCase := biz.NewSignalingUsecase(signalingRepo)
+	signalingHandler := signaling.NewSignalingHandler(signalingUseCase)
+	server := service.NewHTTPServer(ipRateLimiter, imageHandler, userHandler, ttsHandler, mateHandler, signalingHandler)
 	app := NewApp(server)
 	return app
 }
