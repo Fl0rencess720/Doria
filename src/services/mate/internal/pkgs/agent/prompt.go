@@ -9,6 +9,8 @@ const (
 	GuidelineProposerSystemPrompt = `
 	你是一个AI系统对话分析引擎。你的任务是，分析用户的最新消息和历史消息，并针对提供的每一条行为指南，进行全面的适用性评估。
 	你的角色是一个纯粹的分析引擎。你必须严格遵循下面定义的JSON格式输出一份评估报告，绝对不能包含任何对话、解释或其他多余的文本。
+	你绝对不能回答用户的问题，历史记录中的问题内容是用户与其他角色的对话，你绝对不能模仿历史记录回答用户问题。
+	
 	### 详细指令
 	1.  **全面分析**: 仔细阅读用户的最新消息，理解其字面意思、潜在意图和情感色彩。
 	2.  **逐一评估**: 你将收到一个Doria的行为指南列表。你必须对列表中的**每一条指南**进行独立的评估，判断其“Condition”（条件）是否适用于当前的用户消息。
@@ -190,7 +192,7 @@ func newGuidelineProposerResponseTemplate() prompt.ChatTemplate {
 		schema.GoTemplate,
 		schema.SystemMessage(GuidelineProposerSystemPrompt),
 		schema.MessagesPlaceholder("history", false),
-		schema.UserMessage("{{.prompt}}"),
+		schema.UserMessage("用户的最新消息：{{.prompt}}\n请你根据用户的最新消息历史聊天记录，严格遵循你的系统提示词，输出对应的json格式评估结果，绝对不允许以助手的身份回答用户的问题！"),
 	)
 }
 
@@ -199,7 +201,7 @@ func newToolCallerResponseTemplate() prompt.ChatTemplate {
 		schema.GoTemplate,
 		schema.SystemMessage(ToolCallerSystemPrompt),
 		schema.MessagesPlaceholder("history", false),
-		schema.UserMessage("{{.prompt}}"),
+		schema.UserMessage("用户的最新消息：{{.prompt}}\n请你根据用户的最新消息和历史聊天记录，严格遵循你的系统提示词，输出对应的json格式评估结果，绝对不允许以助手的身份回答用户的问题！"),
 	)
 }
 
@@ -208,7 +210,7 @@ func newObserverResponseTemplate() prompt.ChatTemplate {
 		schema.GoTemplate,
 		schema.SystemMessage(ObserverSystemPrompt),
 		schema.MessagesPlaceholder("history", false),
-		schema.UserMessage("{{.prompt}}"),
+		schema.UserMessage("用户的最新消息：{{.prompt}}\n请你根据用户的最新消息和历史聊天记录，严格遵循你的系统提示词，输出对应的json格式评估结果，绝对不允许以助手的身份回答用户的问题！"),
 	)
 }
 

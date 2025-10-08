@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"io"
+	"time"
 
 	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/biz"
@@ -20,6 +22,42 @@ func (s *MateService) Chat(ctx context.Context, req *mateapi.ChatRequest) (*mate
 	return &mateapi.ChatResponse{
 		Message: resp,
 	}, nil
+}
+
+func (s *MateService) ChatStream(req *mateapi.ChatRequest, stream mateapi.MateService_ChatStreamServer) error {
+	ctx := stream.Context()
+
+	responseStream, messageID, err := s.mateUseCase.ChatStream(ctx, &biz.ChatReq{
+		UserID: uint(req.UserId),
+		Prompt: req.Prompt,
+	})
+	if err != nil {
+		return err
+	}
+
+	for {
+		chunk, err := responseStream.Recv()
+		if err == io.EOF {
+			return stream.Send(&mateapi.ChatStreamResponse{
+				Content:   "",
+				MessageId: messageID,
+				Timestamp: time.Now().Unix(),
+				Finished:  true,
+			})
+		}
+		if err != nil {
+			return err
+		}
+
+		if err := stream.Send(&mateapi.ChatStreamResponse{
+			Content:   chunk,
+			MessageId: messageID,
+			Timestamp: time.Now().Unix(),
+			Finished:  false,
+		}); err != nil {
+			return err
+		}
+	}
 }
 
 func (s *MateService) GetUserPages(ctx context.Context, req *mateapi.GetUserPagesRequest) (*mateapi.GetUserPagesResponse, error) {

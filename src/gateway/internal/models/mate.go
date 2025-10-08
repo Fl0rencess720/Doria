@@ -25,3 +25,12 @@ type GetUserPagesResponse struct {
 	NextCursor string     `json:"next_cursor"`
 	HasMore    bool       `json:"has_more"`
 }
+
+type ChatStreamChunk struct {
+	Type       string `json:"type"`
+	Content    string `json:"content"`
+	MessageID  string `json:"message_id"`
+	Timestamp  int64  `json:"timestamp"`
+	Finished   bool   `json:"finished,omitempty"`
+	Error      string `json:"error,omitempty"`
+}

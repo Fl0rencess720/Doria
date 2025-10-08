@@ -22,7 +22,7 @@ chatmodel:
 services:
   image:
     name: Doria.Service.Image
-    user:
+  user:
     name: Doria.Service.User
   tts:
     name: Doria.Service.TTS

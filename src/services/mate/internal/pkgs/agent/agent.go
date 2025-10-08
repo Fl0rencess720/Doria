@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"io"
 	"strings"
 
 	"github.com/Fl0rencess720/Doria/src/services/mate/internal/models"
@@ -64,6 +65,46 @@ func (a *Agent) Chat(ctx context.Context, memory *AgentMemory, prompt string) (*
 	}
 
 	return response, nil
+}
+
+func (a *Agent) ChatStream(ctx context.Context, memory *AgentMemory, prompt string) (*schema.StreamReader[string], error) {
+	history := pages2History(memory.QAparis)
+	knowledge := formatKnowledges(memory.Knowledges)
+
+	outStream, err := a.runnable.Stream(ctx, map[string]any{
+		"prompt":       prompt,
+		"knowledge":    knowledge,
+		"guidelines":   a.guidelines,
+		"history":      history,
+		"tools_output": "",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Directly convert message stream to string stream without buffering
+	stringReader, stringWriter := schema.Pipe[string](1)
+	go func() {
+		defer stringWriter.Close()
+		defer outStream.Close()
+
+		for {
+			msg, err := outStream.Recv()
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				stringWriter.Send("", err)
+				return
+			}
+
+			if msg != nil && msg.Content != "" {
+				stringWriter.Send(msg.Content, nil)
+			}
+		}
+	}()
+
+	return stringReader, nil
 }
 
 func pages2History(pages []*models.Page) []*schema.Message {
