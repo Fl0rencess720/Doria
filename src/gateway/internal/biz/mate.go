@@ -62,14 +62,29 @@ func (u *mateUseCase) Chat(ctx context.Context, req *models.ChatReq, userID int)
 func (u *mateUseCase) CreateChatStream(ctx context.Context, req *models.ChatReq, userID int) (mateapi.MateService_ChatStreamClient, error) {
 	result, err := u.circuitBreaker.Do(ctx, "mate-service.ChatStream",
 		func(ctx context.Context) (any, error) {
-			stream, err := u.mateClient.ChatStream(ctx, &mateapi.ChatRequest{
+			firstCtx, firstCancel := context.WithTimeout(ctx, 20*time.Second)
+			defer firstCancel()
+
+			stream, err := u.mateClient.ChatStream(firstCtx, &mateapi.ChatRequest{
 				UserId: int32(userID),
 				Prompt: req.Prompt,
 			})
 			if err != nil {
 				return nil, err
 			}
-			return stream, nil
+
+			firstResp, err := stream.Recv()
+			if err != nil {
+				return nil, err
+			}
+
+			preloadedStream := &PreloadedStream{
+				originalStream: stream,
+				firstResponse:  firstResp,
+				firstConsumed:  false,
+			}
+
+			return preloadedStream, nil
 		},
 		func(ctx context.Context, err error) (any, error) {
 			zap.L().Error("mate stream fallback triggered", zap.Error(err))
@@ -88,6 +103,8 @@ func (u *mateUseCase) CreateChatStream(ctx context.Context, req *models.ChatReq,
 
 	switch v := result.(type) {
 	case *MockChatStreamClient:
+		return v, nil
+	case *PreloadedStream:
 		return v, nil
 	case mateapi.MateService_ChatStreamClient:
 		return v, nil
@@ -194,4 +211,42 @@ func (m *MockChatStreamClient) SendMsg(v interface{}) error {
 
 func (m *MockChatStreamClient) RecvMsg(v interface{}) error {
 	return nil
+}
+
+type PreloadedStream struct {
+	originalStream mateapi.MateService_ChatStreamClient
+	firstResponse  *mateapi.ChatStreamResponse
+	firstConsumed  bool
+}
+
+func (p *PreloadedStream) Recv() (*mateapi.ChatStreamResponse, error) {
+	if !p.firstConsumed {
+		p.firstConsumed = true
+		return p.firstResponse, nil
+	}
+	return p.originalStream.Recv()
+}
+
+func (p *PreloadedStream) CloseSend() error {
+	return p.originalStream.CloseSend()
+}
+
+func (p *PreloadedStream) Header() (metadata.MD, error) {
+	return p.originalStream.Header()
+}
+
+func (p *PreloadedStream) Trailer() metadata.MD {
+	return p.originalStream.Trailer()
+}
+
+func (p *PreloadedStream) Context() context.Context {
+	return p.originalStream.Context()
+}
+
+func (p *PreloadedStream) SendMsg(v interface{}) error {
+	return p.originalStream.SendMsg(v)
+}
+
+func (p *PreloadedStream) RecvMsg(v interface{}) error {
+	return p.originalStream.RecvMsg(v)
 }

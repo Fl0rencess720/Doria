@@ -31,7 +31,7 @@ func (u *MateHandler) Chat(c *gin.Context) {
 	userID := c.GetInt(string(middlewares.UserIDKey))
 
 	req := &models.ChatReq{}
-	if err := c.ShouldBind(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		zap.L().Warn("request bind error", zap.Error(err))
 		response.ErrorResponse(c, response.FormError)
 		return
