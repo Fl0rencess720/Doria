@@ -6,6 +6,7 @@ import (
 
 func InitApi(group *gin.RouterGroup, mateHandler *MateHandler) {
 	group.POST("/send", mateHandler.Chat)
+	group.POST("/stream", mateHandler.ChatStream)
 	group.GET("/pages", mateHandler.GetUserPages)
 	// group.GET("/messages", mu.GetConversationMessages)
 }

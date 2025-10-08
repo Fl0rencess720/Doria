@@ -1,7 +1,11 @@
 package response
 
 import (
+	"net/http"
+
+	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type ErrorCode uint
@@ -87,4 +91,20 @@ func AuthErrorResponse(c *gin.Context, code ErrorCode, data ...any) {
 		"msg":  msg,
 	})
 
+}
+
+func SendSSEError(w http.ResponseWriter, flusher http.Flusher, eventName string, errMsg string) {
+	errData := map[string]interface{}{
+		"code": http.StatusInternalServerError,
+		"msg":  "Stream Error: " + errMsg,
+	}
+
+	if err := sse.Encode(w, sse.Event{
+		Event: eventName,
+		Data:  errData,
+	}); err != nil {
+		zap.L().Error("Error encoding final SSE error event", zap.Error(err))
+	}
+
+	flusher.Flush()
 }

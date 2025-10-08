@@ -3,12 +3,14 @@ package biz
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/models"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/circuitbreaker"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
 	mateapi "github.com/Fl0rencess720/Doria/src/rpc/mate"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
 )
 
 type MateRepo interface {
@@ -27,7 +29,6 @@ func NewMateUsecase(repo MateRepo, mateClient mateapi.MateServiceClient, cbManag
 		circuitBreaker: cbManager,
 	}
 }
-
 
 func (u *mateUseCase) Chat(ctx context.Context, req *models.ChatReq, userID int) (string, response.ErrorCode, error) {
 	result, err := u.circuitBreaker.Do(ctx, "mate-service.Chat",
@@ -55,6 +56,60 @@ func (u *mateUseCase) Chat(ctx context.Context, req *models.ChatReq, userID int)
 		return v, response.DegradedError, nil
 	default:
 		return "", response.ServerError, fmt.Errorf("unexpected response type")
+	}
+}
+
+func (u *mateUseCase) CreateChatStream(ctx context.Context, req *models.ChatReq, userID int) (mateapi.MateService_ChatStreamClient, error) {
+	result, err := u.circuitBreaker.Do(ctx, "mate-service.ChatStream",
+		func(ctx context.Context) (any, error) {
+			firstCtx, firstCancel := context.WithTimeout(ctx, 20*time.Second)
+			defer firstCancel()
+
+			stream, err := u.mateClient.ChatStream(firstCtx, &mateapi.ChatRequest{
+				UserId: int32(userID),
+				Prompt: req.Prompt,
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			firstResp, err := stream.Recv()
+			if err != nil {
+				return nil, err
+			}
+
+			preloadedStream := &PreloadedStream{
+				originalStream: stream,
+				firstResponse:  firstResp,
+				firstConsumed:  false,
+			}
+
+			return preloadedStream, nil
+		},
+		func(ctx context.Context, err error) (any, error) {
+			zap.L().Error("mate stream fallback triggered", zap.Error(err))
+			return &MockChatStreamClient{
+				content:   "抱歉，智能助手服务暂时不可用，请稍后再试",
+				messageID: "fallback-" + fmt.Sprintf("%d", time.Now().Unix()),
+				finished:  false,
+			}, nil
+		},
+	)
+
+	if err != nil {
+		zap.L().Error("create chat stream error", zap.Error(err))
+		return nil, err
+	}
+
+	switch v := result.(type) {
+	case *MockChatStreamClient:
+		return v, nil
+	case *PreloadedStream:
+		return v, nil
+	case mateapi.MateService_ChatStreamClient:
+		return v, nil
+	default:
+		return nil, fmt.Errorf("unexpected response type")
 	}
 }
 
@@ -106,4 +161,92 @@ func (u *mateUseCase) GetUserPages(ctx context.Context, req *models.GetUserPages
 	default:
 		return nil, response.ServerError, fmt.Errorf("unexpected response type")
 	}
+}
+
+type MockChatStreamClient struct {
+	content   string
+	messageID string
+	finished  bool
+	sent      bool
+}
+
+func (m *MockChatStreamClient) Recv() (*mateapi.ChatStreamResponse, error) {
+	if m.sent {
+		return &mateapi.ChatStreamResponse{
+			Content:   "",
+			MessageId: m.messageID,
+			Timestamp: time.Now().Unix(),
+			Finished:  true,
+		}, nil
+	}
+
+	m.sent = true
+	return &mateapi.ChatStreamResponse{
+		Content:   m.content,
+		MessageId: m.messageID,
+		Timestamp: time.Now().Unix(),
+		Finished:  false,
+	}, nil
+}
+
+func (m *MockChatStreamClient) CloseSend() error {
+	return nil
+}
+
+func (m *MockChatStreamClient) Header() (metadata.MD, error) {
+	return nil, nil
+}
+
+func (m *MockChatStreamClient) Trailer() metadata.MD {
+	return nil
+}
+
+func (m *MockChatStreamClient) Context() context.Context {
+	return context.Background()
+}
+
+func (m *MockChatStreamClient) SendMsg(v interface{}) error {
+	return nil
+}
+
+func (m *MockChatStreamClient) RecvMsg(v interface{}) error {
+	return nil
+}
+
+type PreloadedStream struct {
+	originalStream mateapi.MateService_ChatStreamClient
+	firstResponse  *mateapi.ChatStreamResponse
+	firstConsumed  bool
+}
+
+func (p *PreloadedStream) Recv() (*mateapi.ChatStreamResponse, error) {
+	if !p.firstConsumed {
+		p.firstConsumed = true
+		return p.firstResponse, nil
+	}
+	return p.originalStream.Recv()
+}
+
+func (p *PreloadedStream) CloseSend() error {
+	return p.originalStream.CloseSend()
+}
+
+func (p *PreloadedStream) Header() (metadata.MD, error) {
+	return p.originalStream.Header()
+}
+
+func (p *PreloadedStream) Trailer() metadata.MD {
+	return p.originalStream.Trailer()
+}
+
+func (p *PreloadedStream) Context() context.Context {
+	return p.originalStream.Context()
+}
+
+func (p *PreloadedStream) SendMsg(v interface{}) error {
+	return p.originalStream.SendMsg(v)
+}
+
+func (p *PreloadedStream) RecvMsg(v interface{}) error {
+	return p.originalStream.RecvMsg(v)
 }

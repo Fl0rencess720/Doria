@@ -10,6 +10,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
+	"github.com/kaptinlin/jsonrepair"
 )
 
 const (
@@ -143,9 +144,14 @@ func activeGuidelinesLambda(ctx context.Context, input *schema.Message) (map[str
 		return nil, err
 	}
 
+	repairedContent, err := jsonrepair.JSONRepair(input.Content)
+	if err != nil {
+		return nil, err
+	}
+
 	var payload InputPayload
 
-	if err := json.Unmarshal([]byte(input.Content), &payload); err != nil {
+	if err := json.Unmarshal([]byte(repairedContent), &payload); err != nil {
 		return nil, err
 	}
 
@@ -247,8 +253,14 @@ func toolCallingLambda(ctx context.Context, input *schema.Message) (map[string]a
 		return nil, err
 	}
 
+	repairedContent, err := jsonrepair.JSONRepair(input.Content)
+	if err != nil {
+		return nil, err
+	}
+
 	var evaluation EvaluationResponse
-	if err := json.Unmarshal([]byte(input.Content), &evaluation); err != nil {
+
+	if err := json.Unmarshal([]byte(repairedContent), &evaluation); err != nil {
 		return nil, fmt.Errorf("解析评估结果失败: %w, 原始响应: %s", err, input.Content)
 	}
 
@@ -301,8 +313,14 @@ func convertObserverOutputLambda(ctx context.Context, input *schema.Message) (ma
 		return nil, err
 	}
 
+	repairedContent, err := jsonrepair.JSONRepair(input.Content)
+	if err != nil {
+		return nil, err
+	}
+
 	observerOutput := ObserverOutput{}
-	if err := json.Unmarshal([]byte(input.Content), &observerOutput); err != nil {
+
+	if err := json.Unmarshal([]byte(repairedContent), &observerOutput); err != nil {
 		return nil, err
 	}
 

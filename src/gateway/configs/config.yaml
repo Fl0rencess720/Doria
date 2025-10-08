@@ -22,8 +22,6 @@ chatmodel:
 services:
   image:
     name: Doria.Service.Image
-  chat:
-    name: Doria.Service.Chat
   user:
     name: Doria.Service.User
   tts:

@@ -6,6 +6,7 @@ option go_package = "rpc/mate";
 
 service MateService {
     rpc Chat(ChatRequest) returns (ChatResponse);
+    rpc ChatStream(ChatRequest) returns (stream ChatStreamResponse);
     rpc GetConversationMessages(GetConversationMessagesRequest) returns (GetConversationMessagesResponse);
     rpc GetUserPages(GetUserPagesRequest) returns (GetUserPagesResponse);
 }
@@ -17,6 +18,13 @@ message ChatRequest {
 
 message ChatResponse {
     string message = 1;
+}
+
+message ChatStreamResponse {
+    string content = 1;
+    string message_id = 2;
+    int64 timestamp = 3;
+    bool finished = 4;
 }
 
 message Message {
