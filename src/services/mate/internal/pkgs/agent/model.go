@@ -8,10 +8,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-func of[T any](t T) *T {
-	return &t
-}
-
 func newChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
 	baseURL := viper.GetString("ANTHROPIC_BASE_URL")
 
