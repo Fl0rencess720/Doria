@@ -32,6 +32,9 @@ type MateUseCase interface {
 
 type SignalingUseCase interface {
 	RegisterAnswerPeer(ctx context.Context, conn *websocket.Conn, req *models.Request) error
+	UnregisterAnswerPeer(ctx context.Context, peerID string) error
+	RegisterOfferPeer(ctx context.Context, conn *websocket.Conn, peerID string) error
+	UnregisterOfferPeer(ctx context.Context, peerID string) error
 	HandleAnswerPeerMessages(ctx context.Context, conn *websocket.Conn, sourcePeerID string) error
 	HandleOfferPeerMessages(ctx context.Context, conn *websocket.Conn, sourcePeerID string) error
 }

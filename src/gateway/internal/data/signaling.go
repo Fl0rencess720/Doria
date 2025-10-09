@@ -36,6 +36,10 @@ func (r *signalingRepo) UnregisterAnswerPeer(peerID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if _, exists := r.answerPeers[peerID]; !exists {
+		return nil
+	}
+
 	delete(r.answerPeers, peerID)
 	return nil
 }
@@ -54,6 +58,10 @@ func (r *signalingRepo) RegisterOfferPeer(peerID string, conn *websocket.Conn) e
 func (r *signalingRepo) UnregisterOfferPeer(peerID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	if _, exists := r.offerPeers[peerID]; !exists {
+		return nil
+	}
 
 	delete(r.offerPeers, peerID)
 	return nil

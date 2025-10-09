@@ -39,6 +39,31 @@ func (u *signalingUseCase) RegisterAnswerPeer(ctx context.Context, conn *websock
 	return nil
 }
 
+func (u *signalingUseCase) UnregisterAnswerPeer(ctx context.Context, peerID string) error {
+	if err := u.repo.UnregisterAnswerPeer(peerID); err != nil {
+		zap.L().Error("failed to unregister answer peer", zap.String("peer_id", peerID), zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (u *signalingUseCase) RegisterOfferPeer(ctx context.Context, conn *websocket.Conn, peerID string) error {
+	if err := u.repo.RegisterOfferPeer(peerID, conn); err != nil {
+		zap.L().Error("failed to register offer peer", zap.String("peer_id", peerID), zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (u *signalingUseCase) UnregisterOfferPeer(ctx context.Context, peerID string) error {
+	if err := u.repo.UnregisterOfferPeer(peerID); err != nil {
+		zap.L().Error("failed to unregister offer peer", zap.String("peer_id", peerID), zap.Error(err))
+		return err
+	}
+	return nil
+}
+
 func (u *signalingUseCase) HandleAnswerPeerMessages(ctx context.Context, conn *websocket.Conn, sourcePeerID string) error {
 	for {
 		select {
@@ -116,7 +141,7 @@ func (u *signalingUseCase) HandleOfferPeerMessages(ctx context.Context, conn *we
 			zap.L().Info("offer peer registered", zap.String("peer_id", sourcePeerID))
 		}
 
-		if err := u.repo.RegisterOfferPeer(sourcePeerID, conn); err != nil {
+		if err := u.RegisterOfferPeer(ctx, conn, sourcePeerID); err != nil {
 			zap.L().Error("failed to register offer peer", zap.String("peer_id", sourcePeerID), zap.Error(err))
 			continue
 		}

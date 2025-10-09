@@ -85,7 +85,9 @@ func (h *SignalingHandler) Register(c *gin.Context) {
 	}
 
 	defer func() {
-		zap.L().Info("answer peer unregistered", zap.String("peer_id", peerID))
+		if err := h.signalingUseCase.UnregisterAnswerPeer(ctx, peerID); err != nil {
+			zap.L().Error("failed to unregister answer peer", zap.String("peer_id", peerID), zap.Error(err))
+		}
 	}()
 
 	peerIDPayload := map[string]interface{}{
@@ -132,7 +134,9 @@ func (h *SignalingHandler) Offer(c *gin.Context) {
 
 	defer func() {
 		if sourcePeerID != "" {
-			zap.L().Info("offer peer unregistered", zap.String("peer_id", sourcePeerID))
+			if err := h.signalingUseCase.UnregisterOfferPeer(ctx, sourcePeerID); err != nil {
+				zap.L().Error("failed to unregister offer peer", zap.String("peer_id", sourcePeerID), zap.Error(err))
+			}
 		}
 	}()
 
