@@ -15,7 +15,6 @@ import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/mate"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/middlewares"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/signaling"
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/tts"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/user"
 	"net/http"
 )
@@ -33,18 +32,17 @@ func wireApp() *App {
 	userServiceClient := data.NewUserClient()
 	userUseCase := biz.NewUserUsecase(userRepo, userServiceClient, circuitBreakerManager)
 	userHandler := user.NewUserHandler(userUseCase)
-	ttsRepo := data.NewTTSRepo()
-	ttsServiceClient := data.NewTTSClient()
-	ttsUseCase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient, circuitBreakerManager)
-	ttsHandler := tts.NewTTSHandler(ttsUseCase)
 	mateRepo := data.NewMateRepo()
 	mateServiceClient := data.NewMateClient()
 	mateUseCase := biz.NewMateUsecase(mateRepo, mateServiceClient, circuitBreakerManager)
-	mateHandler := mate.NewMateHandler(mateUseCase)
+	ttsRepo := data.NewTTSRepo()
+	ttsServiceClient := data.NewTTSClient()
+	ttsUseCase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient, circuitBreakerManager)
+	mateHandler := mate.NewMateHandler(mateUseCase, ttsUseCase)
 	signalingRepo := data.NewSignalingRepo()
 	signalingUseCase := biz.NewSignalingUsecase(signalingRepo)
 	signalingHandler := signaling.NewSignalingHandler(signalingUseCase)
-	server := service.NewHTTPServer(ipRateLimiter, imageHandler, userHandler, ttsHandler, mateHandler, signalingHandler)
+	server := service.NewHTTPServer(ipRateLimiter, imageHandler, userHandler, mateHandler, signalingHandler)
 	app := NewApp(server)
 	return app
 }

@@ -83,7 +83,10 @@ func (u *MateHandler) ChatStream(c *gin.Context) {
 	defer pw.Close()
 
 	go func() {
-		u.ttsUseCase.SynthesizeSpeech(ctx, pr)
+		if err := u.ttsUseCase.SynthesizeSpeech(ctx, pr, req.SessionID); err != nil {
+			zap.L().Error("tts error", zap.Error(err))
+			return
+		}
 	}()
 
 	for {

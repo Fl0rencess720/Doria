@@ -17,7 +17,7 @@ type UserUseCase interface {
 }
 
 type TTSUseCase interface {
-	SynthesizeSpeech(ctx context.Context, reader io.Reader) ([]byte, response.ErrorCode, error)
+	SynthesizeSpeech(ctx context.Context, reader io.Reader, sessionID string) error
 }
 
 type ImageUseCase interface {
