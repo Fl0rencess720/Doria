@@ -269,7 +269,7 @@ func (sm *SignalingManager) processMessage(msg *models.Message) error {
 		return sm.handleAnswer(msg)
 	case models.CmdCandidate:
 		return sm.handleCandidate(msg)
-	case models.CmdAnswerResp, models.CmdCandidateResp:
+	case models.CmdAnswerResp, models.CmdCandidateResp, models.CmdOfferResp:
 		return nil
 	default:
 		zap.L().Info("SignalingManager: unknown message", zap.Int("cmd", msg.Cmd))

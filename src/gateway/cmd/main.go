@@ -61,13 +61,20 @@ func main() {
 	app := wireApp()
 
 	go func() {
-		if err := app.HttpServer.ListenAndServe(); err != nil {
-			zap.L().Error("Server ListenAndServe", zap.Error(err))
+		if err := app.HttpServer.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.L().Error("HTTP Server ListenAndServe", zap.Error(err))
 			panic(err)
 		}
 	}()
 
-	closeServer(app.HttpServer)
+	go func() {
+		if err := app.SignalingServer.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zap.L().Error("Signaling Server ListenAndServe", zap.Error(err))
+			panic(err)
+		}
+	}()
+
+	closeServers(app.HttpServer.Server, app.SignalingServer.Server)
 }
 
 func registerService(serviceName string) error {
@@ -82,15 +89,22 @@ func registerService(serviceName string) error {
 	return nil
 }
 
-func closeServer(srv *http.Server) {
+func closeServers(servers ...*http.Server) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGTERM)
 	<-quit
-	zap.L().Info("Shutdown Server ...")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	zap.L().Info("Shutdown Servers ...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		zap.L().Fatal("Server forced to shutdown:", zap.Error(err))
+
+	for _, srv := range servers {
+		if err := srv.Shutdown(ctx); err != nil {
+			zap.L().Error("Server forced to shutdown:", zap.Error(err))
+		} else {
+			zap.L().Info("Server shutdown successfully", zap.String("addr", srv.Addr))
+		}
 	}
-	zap.L().Info("Server exiting")
+
+	zap.L().Info("All servers exiting")
 }

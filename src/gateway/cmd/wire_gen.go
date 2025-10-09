@@ -16,7 +16,6 @@ import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/middlewares"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/signaling"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/user"
-	"net/http"
 )
 
 // Injectors from wire.go:
@@ -39,22 +38,25 @@ func wireApp() *App {
 	ttsServiceClient := data.NewTTSClient()
 	ttsUseCase := biz.NewTTSUsecase(ttsRepo, ttsServiceClient, circuitBreakerManager)
 	mateHandler := mate.NewMateHandler(mateUseCase, ttsUseCase)
+	httpServer := service.NewHTTPServer(ipRateLimiter, imageHandler, userHandler, mateHandler)
 	signalingRepo := data.NewSignalingRepo()
 	signalingUseCase := biz.NewSignalingUsecase(signalingRepo)
 	signalingHandler := signaling.NewSignalingHandler(signalingUseCase)
-	server := service.NewHTTPServer(ipRateLimiter, imageHandler, userHandler, mateHandler, signalingHandler)
-	app := NewApp(server)
+	signalingServer := service.NewSignalingServer(signalingHandler)
+	app := NewApp(httpServer, signalingServer)
 	return app
 }
 
 // wire.go:
 
 type App struct {
-	HttpServer *http.Server
+	HttpServer      *service.HTTPServer
+	SignalingServer *service.SignalingServer
 }
 
-func NewApp(server *http.Server) *App {
+func NewApp(httpServer *service.HTTPServer, signalingServer *service.SignalingServer) *App {
 	return &App{
-		HttpServer: server,
+		HttpServer:      httpServer,
+		SignalingServer: signalingServer,
 	}
 }

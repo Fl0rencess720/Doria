@@ -82,7 +82,6 @@ func (a *Agent) ChatStream(ctx context.Context, memory *AgentMemory, prompt stri
 		return nil, err
 	}
 
-	// Directly convert message stream to string stream without buffering
 	stringReader, stringWriter := schema.Pipe[string](1)
 	go func() {
 		defer stringWriter.Close()

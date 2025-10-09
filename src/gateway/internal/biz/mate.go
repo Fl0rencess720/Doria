@@ -62,10 +62,7 @@ func (u *mateUseCase) Chat(ctx context.Context, req *models.ChatReq, userID int)
 func (u *mateUseCase) CreateChatStream(ctx context.Context, req *models.ChatReq, userID int) (mateapi.MateService_ChatStreamClient, error) {
 	result, err := u.circuitBreaker.Do(ctx, "mate-service.ChatStream",
 		func(ctx context.Context) (any, error) {
-			firstCtx, firstCancel := context.WithTimeout(ctx, 20*time.Second)
-			defer firstCancel()
-
-			stream, err := u.mateClient.ChatStream(firstCtx, &mateapi.ChatRequest{
+			stream, err := u.mateClient.ChatStream(ctx, &mateapi.ChatRequest{
 				UserId: int32(userID),
 				Prompt: req.Prompt,
 			})

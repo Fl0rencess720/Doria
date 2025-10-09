@@ -3,6 +3,9 @@ server:
     name: Doria.Gateway
     addr: :8000
     timeout: 900s
+  signaling:
+    name: Doria.Gateway.Signaling
+    addr: :8001
     
 
 trace:
@@ -20,8 +23,8 @@ chatmodel:
   baseURL: https://api.openai.com/v1
 
 webrtc:
-  signaling_offer_url: ws://localhost:8000/api/signaling/offer
-  signaling_register_url: ws://localhost:8000/api/signaling/register
+  signaling_offer_url: ws://localhost:8001/api/signaling/offer
+  signaling_register_url: ws://localhost:8001/api/signaling/register
 
 services:
   image:

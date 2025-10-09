@@ -1,9 +1,11 @@
 package mate
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/models"
@@ -80,13 +82,23 @@ func (u *MateHandler) ChatStream(c *gin.Context) {
 	}
 
 	pr, pw := io.Pipe()
-	defer pw.Close()
 
+	var wg sync.WaitGroup
+	ttsCtx, ttsCancel := context.WithCancel(context.Background())
+
+	wg.Add(1)
 	go func() {
-		if err := u.ttsUseCase.SynthesizeSpeech(ctx, pr, req.SessionID); err != nil {
+		defer wg.Done()
+		if err := u.ttsUseCase.SynthesizeSpeech(ttsCtx, pr, req.SessionID); err != nil {
 			zap.L().Error("tts error", zap.Error(err))
 			return
 		}
+	}()
+
+	defer func() {
+		pw.Close()
+		wg.Wait()
+		ttsCancel()
 	}()
 
 	for {

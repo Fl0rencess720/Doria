@@ -47,6 +47,10 @@ func (u *ttsUseCase) SynthesizeSpeech(ctx context.Context, reader io.Reader, ses
 			for scanner.Scan() {
 				text := strings.TrimSpace(scanner.Text())
 
+				if text == "" {
+					continue
+				}
+
 				audioContent, err := u.ttsClient.SynthesizeSpeech(ctx, &ttsapi.SynthesizeSpeechRequest{
 					Text: text,
 				})
