@@ -17,11 +17,13 @@ import (
 
 type MateHandler struct {
 	mateUseCase biz.MateUseCase
+	ttsUseCase  biz.TTSUseCase
 }
 
-func NewMateHandler(mateUseCase biz.MateUseCase) *MateHandler {
+func NewMateHandler(mateUseCase biz.MateUseCase, ttsUseCase biz.TTSUseCase) *MateHandler {
 	return &MateHandler{
 		mateUseCase: mateUseCase,
+		ttsUseCase:  ttsUseCase,
 	}
 }
 
@@ -77,6 +79,13 @@ func (u *MateHandler) ChatStream(c *gin.Context) {
 		return
 	}
 
+	pr, pw := io.Pipe()
+	defer pw.Close()
+
+	go func() {
+		u.ttsUseCase.SynthesizeSpeech(ctx, pr)
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -94,6 +103,13 @@ func (u *MateHandler) ChatStream(c *gin.Context) {
 		if err != nil {
 			zap.L().Error("failed to receive from gRPC stream", zap.Error(err))
 			response.SendSSEError(c.Writer, flusher, "gRPCError", err.Error())
+			return
+		}
+
+		_, err = pw.Write([]byte(resp.Content))
+		if err != nil {
+			zap.L().Error("failed to write to pipe", zap.Error(err))
+			response.SendSSEError(c.Writer, flusher, "ServerError", err.Error())
 			return
 		}
 

@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"io"
 
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/models"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
@@ -16,7 +17,7 @@ type UserUseCase interface {
 }
 
 type TTSUseCase interface {
-	SynthesizeSpeech(ctx context.Context, text string) ([]byte, response.ErrorCode, error)
+	SynthesizeSpeech(ctx context.Context, reader io.Reader) ([]byte, response.ErrorCode, error)
 }
 
 type ImageUseCase interface {

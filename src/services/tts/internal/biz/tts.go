@@ -59,7 +59,7 @@ func (u *TTSUseCase) SynthesizeSpeech(text string) ([]byte, error) {
 	req := TTSRequest{
 		Common: Common{AppID: viper.GetString("XF_APP_ID")},
 		Business: Business{
-			Aue:    "lame",
+			Aue:    "opus",
 			Sfl:    1,
 			Vcn:    "xiaoyan",
 			Speed:  50,

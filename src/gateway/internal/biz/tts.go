@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/circuitbreaker"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
@@ -11,6 +12,7 @@ import (
 )
 
 type TTSRepo interface {
+	CreateOfferPeerMediaChannel(ctx context.Context)
 }
 
 type ttsUseCase struct {
@@ -27,11 +29,11 @@ func NewTTSUsecase(repo TTSRepo, ttsClient ttsapi.TTSServiceClient, cbManager *c
 	}
 }
 
-
-func (u *ttsUseCase) SynthesizeSpeech(ctx context.Context, text string) ([]byte, response.ErrorCode, error) {
+func (u *ttsUseCase) SynthesizeSpeech(ctx context.Context, reader io.Reader) ([]byte, response.ErrorCode, error) {
 	result, err := u.circuitBreaker.Do(ctx, "tts-service.SynthesizeSpeech",
 		func(ctx context.Context) (any, error) {
-			return u.ttsClient.SynthesizeSpeech(ctx, &ttsapi.SynthesizeSpeechRequest{
+
+			audioContent, err := u.ttsClient.SynthesizeSpeech(ctx, &ttsapi.SynthesizeSpeechRequest{
 				Text: text,
 			})
 		},
