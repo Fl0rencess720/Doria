@@ -6,8 +6,6 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/google/wire"
 
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
@@ -17,12 +15,14 @@ import (
 )
 
 type App struct {
-	HttpServer *http.Server
+	HttpServer      *service.HTTPServer
+	SignalingServer *service.SignalingServer
 }
 
-func NewApp(server *http.Server) *App {
+func NewApp(httpServer *service.HTTPServer, signalingServer *service.SignalingServer) *App {
 	return &App{
-		HttpServer: server,
+		HttpServer:      httpServer,
+		SignalingServer: signalingServer,
 	}
 }
 

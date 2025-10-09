@@ -1,16 +1,21 @@
 package biz
 
 import (
+	"bufio"
 	"context"
-	"fmt"
+	"io"
+	"strings"
 
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/circuitbreaker"
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/response"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/pkgs/utils"
 	ttsapi "github.com/Fl0rencess720/Doria/src/rpc/tts"
+	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v3/pkg/media"
 	"go.uber.org/zap"
 )
 
 type TTSRepo interface {
+	CreateOfferPeerTrack(ctx context.Context, peerID, targetPeerID string) (*webrtc.TrackLocalStaticSample, error)
 }
 
 type ttsUseCase struct {
@@ -27,31 +32,55 @@ func NewTTSUsecase(repo TTSRepo, ttsClient ttsapi.TTSServiceClient, cbManager *c
 	}
 }
 
-
-func (u *ttsUseCase) SynthesizeSpeech(ctx context.Context, text string) ([]byte, response.ErrorCode, error) {
-	result, err := u.circuitBreaker.Do(ctx, "tts-service.SynthesizeSpeech",
+func (u *ttsUseCase) SynthesizeSpeech(ctx context.Context, reader io.Reader, sessionID string) error {
+	_, err := u.circuitBreaker.Do(ctx, "tts-service.SynthesizeSpeech",
 		func(ctx context.Context) (any, error) {
-			return u.ttsClient.SynthesizeSpeech(ctx, &ttsapi.SynthesizeSpeechRequest{
-				Text: text,
-			})
+			track, err := u.repo.CreateOfferPeerTrack(ctx, utils.GenerateOfferPeerID(sessionID), utils.GenerateAnswerPeerID(sessionID))
+			if err != nil {
+				zap.L().Error("create offer peer track failed", zap.Error(err))
+				return nil, err
+			}
+
+			scanner := bufio.NewScanner(reader)
+			scanner.Split(utils.ScanOnPunctuation)
+
+			for scanner.Scan() {
+				text := strings.TrimSpace(scanner.Text())
+
+				if text == "" {
+					continue
+				}
+
+				audioContent, err := u.ttsClient.SynthesizeSpeech(ctx, &ttsapi.SynthesizeSpeechRequest{
+					Text: text,
+				})
+				if err != nil {
+					zap.L().Error("tts client error", zap.Error(err))
+					return nil, err
+				}
+
+				if err := track.WriteSample(media.Sample{Data: audioContent.AudioContent}); err != nil {
+					zap.L().Error("write sample error", zap.Error(err))
+					return nil, err
+				}
+			}
+
+			if err := scanner.Err(); err != nil {
+				zap.L().Error("scanner error", zap.Error(err))
+				return nil, err
+			}
+			return true, nil
 		},
 		func(ctx context.Context, err error) (any, error) {
 			zap.L().Error("tts fallback triggered", zap.Error(err))
-			return []byte{}, nil
+			return true, nil
 		},
 	)
 
 	if err != nil {
 		zap.L().Error("tts client error", zap.Error(err))
-		return nil, response.ServerError, err
+		return err
 	}
 
-	switch v := result.(type) {
-	case *ttsapi.SynthesizeSpeechResponse:
-		return v.AudioContent, response.NoError, nil
-	case []byte:
-		return v, response.DegradedError, nil
-	default:
-		return nil, response.ServerError, fmt.Errorf("unexpected response type")
-	}
+	return nil
 }

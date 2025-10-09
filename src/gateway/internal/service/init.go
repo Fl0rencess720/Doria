@@ -7,7 +7,7 @@ import (
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/image"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/mate"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/middlewares"
-	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/tts"
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/signaling"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/service/user"
 	ginZap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
@@ -16,11 +16,19 @@ import (
 	"go.uber.org/zap"
 )
 
-var ProviderSet = wire.NewSet(NewHTTPServer, user.NewUserHandler,
-	tts.NewTTSHandler, image.NewImageHandler, mate.NewMateHandler, middlewares.ProviderSet)
+var ProviderSet = wire.NewSet(NewHTTPServer, NewSignalingServer, user.NewUserHandler,
+	image.NewImageHandler, mate.NewMateHandler, signaling.NewSignalingHandler, middlewares.ProviderSet)
+
+type HTTPServer struct {
+	*http.Server
+}
+
+type SignalingServer struct {
+	*http.Server
+}
 
 func NewHTTPServer(rateLimiter *middlewares.IPRateLimiter, imageHandler *image.ImageHandler, userHandler *user.UserHandler,
-	ttsHandler *tts.TTSHandler, mateHandler *mate.MateHandler) *http.Server {
+	mateHandler *mate.MateHandler) *HTTPServer {
 	e := gin.New()
 	e.Use(gin.Logger(), gin.Recovery(), ginZap.Ginzap(zap.L(), time.RFC3339, false), ginZap.RecoveryWithZap(zap.L(), false))
 
@@ -31,7 +39,6 @@ func NewHTTPServer(rateLimiter *middlewares.IPRateLimiter, imageHandler *image.I
 	{
 		image.InitApi(app.Group("/image"), imageHandler)
 		user.InitApi(app.Group("/user"), userHandler)
-		tts.InitApi(app.Group("/tts"), ttsHandler)
 		mate.InitApi(app.Group("/mate"), mateHandler)
 	}
 
@@ -40,8 +47,27 @@ func NewHTTPServer(rateLimiter *middlewares.IPRateLimiter, imageHandler *image.I
 		user.InitNoneAuthApi(appNoneAuth.Group("/user"), userHandler)
 	}
 
-	return &http.Server{
-		Addr:    viper.GetString("server.http.addr"),
-		Handler: e,
+	return &HTTPServer{
+		Server: &http.Server{
+			Addr:    viper.GetString("server.http.addr"),
+			Handler: e,
+		},
+	}
+}
+
+func NewSignalingServer(signalingHandler *signaling.SignalingHandler) *SignalingServer {
+	e := gin.New()
+	e.Use(gin.Logger(), gin.Recovery(), ginZap.Ginzap(zap.L(), time.RFC3339, false), ginZap.RecoveryWithZap(zap.L(), false))
+
+	appNoneAuth := e.Group("/api", middlewares.Cors())
+	{
+		signaling.InitApi(appNoneAuth.Group("/signaling"), signalingHandler)
+	}
+
+	return &SignalingServer{
+		Server: &http.Server{
+			Addr:    viper.GetString("server.signaling.addr"),
+			Handler: e,
+		},
 	}
 }

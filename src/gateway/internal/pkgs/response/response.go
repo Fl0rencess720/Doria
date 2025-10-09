@@ -1,10 +1,13 @@
 package response
 
 import (
+	"encoding/json"
 	"net/http"
 
+	"github.com/Fl0rencess720/Doria/src/gateway/internal/models"
 	"github.com/gin-contrib/sse"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 )
 
@@ -107,4 +110,35 @@ func SendSSEError(w http.ResponseWriter, flusher http.Flusher, eventName string,
 	}
 
 	flusher.Flush()
+}
+
+func SendWebSocketError(conn *websocket.Conn, errorCode ErrorCode) {
+	msg, ok := Message[errorCode]
+	if !ok {
+		msg = "未知错误"
+	}
+
+	errorResp := models.Response{
+		Code: int(errorCode),
+		Msg:  msg,
+	}
+
+	respBytes, err := json.Marshal(errorResp)
+	if err != nil {
+		zap.L().Error("Error marshalling error response", zap.Error(err))
+		return
+	}
+
+	errorMsg := models.Message{
+		Cmd:     0,
+		Payload: respBytes,
+	}
+
+	errorMsgBytes, err := json.Marshal(errorMsg)
+	if err != nil {
+		zap.L().Error("Error marshalling error message", zap.Error(err))
+		return
+	}
+
+	conn.WriteMessage(websocket.TextMessage, errorMsgBytes)
 }

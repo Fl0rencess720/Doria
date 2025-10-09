@@ -3,39 +3,51 @@ package agent
 import (
 	"context"
 
-	"github.com/cloudwego/eino-ext/components/model/claude"
+	"github.com/cloudwego/eino-ext/components/model/openai"
+	openai2 "github.com/cloudwego/eino-ext/libs/acl/openai"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/spf13/viper"
 )
 
-func newChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
-	baseURL := viper.GetString("ANTHROPIC_BASE_URL")
+func of[T any](t T) *T {
+	return &t
+}
 
-	cm, err := claude.NewChatModel(ctx, &claude.Config{
-		BaseURL:   &baseURL,
-		APIKey:    viper.GetString("ANTHROPIC_API_KEY"),
-		Model:     viper.GetString("agent.model.chat"),
-		MaxTokens: 6400,
+func newChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
+	cm, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		BaseURL:     viper.GetString("OPENAI_BASE_URL"),
+		APIKey:      viper.GetString("OPENAI_API_KEY"),
+		Model:       viper.GetString("agent.model.chat"),
+		MaxTokens:   of(8192),
+		Temperature: of(float32(0.7)),
+		TopP:        of(float32(0.7)),
+		ExtraFields: map[string]any{
+			"enable_thinking": false,
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-
 	return cm, nil
 }
 
 func newJsonOutputModel(ctx context.Context) (model.ToolCallingChatModel, error) {
-	baseURL := viper.GetString("ANTHROPIC_BASE_URL")
-
-	cm, err := claude.NewChatModel(ctx, &claude.Config{
-		BaseURL:   &baseURL,
-		APIKey:    viper.GetString("ANTHROPIC_API_KEY"),
-		Model:     viper.GetString("agent.model.chat"),
-		MaxTokens: 12800,
+	rm, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		BaseURL:     viper.GetString("OPENAI_BASE_URL"),
+		APIKey:      viper.GetString("OPENAI_API_KEY"),
+		Model:       viper.GetString("agent.model.retrieval"),
+		MaxTokens:   of(8192),
+		Temperature: of(float32(0.0)),
+		TopP:        of(float32(0.7)),
+		ExtraFields: map[string]any{
+			"enable_thinking": false,
+		},
+		ResponseFormat: &openai2.ChatCompletionResponseFormat{
+			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	return cm, nil
+	return rm, nil
 }

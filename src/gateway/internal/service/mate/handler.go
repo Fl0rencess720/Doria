@@ -1,9 +1,11 @@
 package mate
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/biz"
 	"github.com/Fl0rencess720/Doria/src/gateway/internal/models"
@@ -17,11 +19,13 @@ import (
 
 type MateHandler struct {
 	mateUseCase biz.MateUseCase
+	ttsUseCase  biz.TTSUseCase
 }
 
-func NewMateHandler(mateUseCase biz.MateUseCase) *MateHandler {
+func NewMateHandler(mateUseCase biz.MateUseCase, ttsUseCase biz.TTSUseCase) *MateHandler {
 	return &MateHandler{
 		mateUseCase: mateUseCase,
+		ttsUseCase:  ttsUseCase,
 	}
 }
 
@@ -77,6 +81,26 @@ func (u *MateHandler) ChatStream(c *gin.Context) {
 		return
 	}
 
+	pr, pw := io.Pipe()
+
+	var wg sync.WaitGroup
+	ttsCtx, ttsCancel := context.WithCancel(context.Background())
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := u.ttsUseCase.SynthesizeSpeech(ttsCtx, pr, req.SessionID); err != nil {
+			zap.L().Error("tts error", zap.Error(err))
+			return
+		}
+	}()
+
+	defer func() {
+		pw.Close()
+		wg.Wait()
+		ttsCancel()
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -94,6 +118,13 @@ func (u *MateHandler) ChatStream(c *gin.Context) {
 		if err != nil {
 			zap.L().Error("failed to receive from gRPC stream", zap.Error(err))
 			response.SendSSEError(c.Writer, flusher, "gRPCError", err.Error())
+			return
+		}
+
+		_, err = pw.Write([]byte(resp.Content))
+		if err != nil {
+			zap.L().Error("failed to write to pipe", zap.Error(err))
+			response.SendSSEError(c.Writer, flusher, "ServerError", err.Error())
 			return
 		}
 

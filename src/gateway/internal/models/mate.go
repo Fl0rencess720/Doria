@@ -1,7 +1,8 @@
 package models
 
 type ChatReq struct {
-	Prompt string `json:"prompt" binding:"required"`
+	Prompt    string `json:"prompt" binding:"required"`
+	SessionID string `json:"session_id"`
 }
 
 type PageResp struct {
@@ -27,10 +28,10 @@ type GetUserPagesResponse struct {
 }
 
 type ChatStreamChunk struct {
-	Type       string `json:"type"`
-	Content    string `json:"content"`
-	MessageID  string `json:"message_id"`
-	Timestamp  int64  `json:"timestamp"`
-	Finished   bool   `json:"finished,omitempty"`
-	Error      string `json:"error,omitempty"`
+	Type      string `json:"type"`
+	Content   string `json:"content"`
+	MessageID string `json:"message_id"`
+	Timestamp int64  `json:"timestamp"`
+	Finished  bool   `json:"finished,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
