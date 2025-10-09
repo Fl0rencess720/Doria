@@ -88,12 +88,24 @@ func (h *SignalingHandler) Register(c *gin.Context) {
 		zap.L().Info("answer peer unregistered", zap.String("peer_id", peerID))
 	}()
 
-	peerIDResponse := map[string]interface{}{
+	peerIDPayload := map[string]interface{}{
 		"peer_id": peerID,
 		"status":  "registered",
 	}
-	if err := conn.WriteJSON(peerIDResponse); err != nil {
-		zap.L().Error("failed to send peer_id to client", zap.Error(err))
+
+	peerIDPayloadBytes, err := json.Marshal(peerIDPayload)
+	if err != nil {
+		zap.L().Error("failed to marshal peer_id payload", zap.Error(err))
+		return
+	}
+
+	registerRespMsg := models.Message{
+		Cmd:     models.CmdRegisterResp,
+		Payload: peerIDPayloadBytes,
+	}
+
+	if err := conn.WriteJSON(registerRespMsg); err != nil {
+		zap.L().Error("failed to send register response with peer_id", zap.Error(err))
 		return
 	}
 

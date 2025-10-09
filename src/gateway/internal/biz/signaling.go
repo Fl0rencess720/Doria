@@ -36,25 +36,6 @@ func (u *signalingUseCase) RegisterAnswerPeer(ctx context.Context, conn *websock
 		return err
 	}
 
-	resp := models.Response{Code: 0, Msg: "ok"}
-	respBytes, err := json.Marshal(resp)
-	if err != nil {
-		zap.L().Error("failed to marshal response", zap.Error(err))
-		return err
-	}
-
-	initRespMsg := models.Message{Cmd: models.CmdInitResp, Payload: respBytes}
-	initRespBytes, err := json.Marshal(initRespMsg)
-	if err != nil {
-		zap.L().Error("failed to marshal init response message", zap.Error(err))
-		return err
-	}
-
-	if err := conn.WriteMessage(websocket.TextMessage, initRespBytes); err != nil {
-		zap.L().Error("websocket write error", zap.Error(err))
-		return err
-	}
-
 	return nil
 }
 

@@ -11,6 +11,7 @@ const (
 	CmdAnswerResp    = 102
 	CmdOfferResp     = 103
 	CmdCandidateResp = 104
+	CmdRegisterResp  = 105
 )
 
 type Peer struct {
