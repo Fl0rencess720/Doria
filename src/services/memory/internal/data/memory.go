@@ -268,15 +268,36 @@ func (r *memoryRepo) ArchiveSegmentsToLTM(ctx context.Context, ltmRecords []*mod
 }
 
 func (r *memoryRepo) GetSTM(ctx context.Context, userID uint) ([]*models.Page, error) {
-	pagesInSTM := []*models.Page{}
+	STMCapacity := viper.GetInt("memory.stm_capacity")
+
+	pagesFromCache, err := r.getSTMFromCache(ctx, userID, STMCapacity)
+	if err != nil {
+		zap.L().Error("Failed to get STM from cache, falling back to database",
+			zap.Uint("userID", userID),
+			zap.Error(err))
+	} else if len(pagesFromCache) > 0 {
+		return pagesFromCache, nil
+	}
+
+	pagesFromDB := []*models.Page{}
 	if err := r.pg.WithContext(ctx).Debug().
 		Where("user_id = ?", userID).
 		Where("status = ?", "in_stm").
 		Order("created_at ASC").
-		Find(&pagesInSTM).Error; err != nil {
+		Find(&pagesFromDB).Error; err != nil {
 		return nil, err
 	}
-	return pagesInSTM, nil
+
+	if len(pagesFromDB) > 0 {
+		if err := r.saveSTMToCache(ctx, userID, pagesFromDB); err != nil {
+			zap.L().Error("Failed to cache STM pages",
+				zap.Uint("userID", userID),
+				zap.Int("pageCount", len(pagesFromDB)),
+				zap.Error(err))
+		}
+	}
+
+	return pagesFromDB, nil
 }
 
 func (r *memoryRepo) GetMTM(ctx context.Context, userID uint, prompt string) ([]*models.Page, error) {
@@ -362,6 +383,112 @@ func getUserSTMKey(userID uint) string {
 
 func getUserLTMKey(userID uint) string {
 	return fmt.Sprintf("ltm:%d", userID)
+}
+
+func getUserSTMCacheKey(userID uint) string {
+	return fmt.Sprintf("%s:%d", consts.STMPageCachePrefix, userID)
+}
+
+func (r *memoryRepo) getSTMFromCache(ctx context.Context, userID uint, limit int) ([]*models.Page, error) {
+	cacheKey := getUserSTMCacheKey(userID)
+
+	results, err := r.redisClient.LRange(ctx, cacheKey, int64(-limit), -1).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return []*models.Page{}, nil
+		}
+		return nil, err
+	}
+
+	if len(results) == 0 {
+		return []*models.Page{}, nil
+	}
+
+	pages := make([]*models.Page, 0, len(results))
+	for _, jsonStr := range results {
+		var page models.Page
+		if err := json.Unmarshal([]byte(jsonStr), &page); err != nil {
+			zap.L().Error("Failed to unmarshal page from cache",
+				zap.Uint("userID", userID),
+				zap.String("jsonStr", jsonStr),
+				zap.Error(err))
+			continue
+		}
+		pages = append(pages, &page)
+	}
+
+	return pages, nil
+}
+
+func (r *memoryRepo) saveSTMToCache(ctx context.Context, userID uint, pages []*models.Page) error {
+	if len(pages) == 0 {
+		return nil
+	}
+
+	cacheKey := getUserSTMCacheKey(userID)
+
+	if err := r.redisClient.Del(ctx, cacheKey).Err(); err != nil {
+		return err
+	}
+
+	jsonPages := make([]interface{}, 0, len(pages))
+	for _, page := range pages {
+		jsonData, err := json.Marshal(page)
+		if err != nil {
+			zap.L().Error("Failed to marshal page for cache",
+				zap.Uint("userID", userID),
+				zap.Uint("pageID", page.ID),
+				zap.Error(err))
+			continue
+		}
+		jsonPages = append(jsonPages, string(jsonData))
+	}
+
+	if len(jsonPages) == 0 {
+		return nil
+	}
+
+	pipe := r.redisClient.Pipeline()
+	for _, jsonPage := range jsonPages {
+		pipe.RPush(ctx, cacheKey, jsonPage) // 按顺序添加到尾部，保持从旧到新顺序
+	}
+	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
+
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+func (r *memoryRepo) AddPageToSTMCache(ctx context.Context, page *models.Page) error {
+	cacheKey := getUserSTMCacheKey(page.UserID)
+
+	jsonData, err := json.Marshal(page)
+	if err != nil {
+		return fmt.Errorf("failed to marshal page for cache: %w", err)
+	}
+
+	pipe := r.redisClient.Pipeline()
+	pipe.RPush(ctx, cacheKey, jsonData) // 添加到列表尾部
+	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
+
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+func (r *memoryRepo) InvalidateSTMCache(ctx context.Context, userID uint) error {
+	cacheKey := getUserSTMCacheKey(userID)
+
+	err := r.redisClient.Del(ctx, cacheKey).Err()
+	if err != nil {
+		zap.L().Error("Failed to invalidate STM cache",
+			zap.Uint("userID", userID),
+			zap.Error(err))
+		return err
+	}
+
+	zap.L().Info("STM cache invalidated successfully",
+		zap.Uint("userID", userID))
+
+	return nil
 }
 
 func (r *memoryRepo) acquireLockWithRetry(ctx context.Context, key string, ttl time.Duration) (bool, error) {
