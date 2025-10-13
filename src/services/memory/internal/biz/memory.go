@@ -24,6 +24,8 @@ type MemoryRepo interface {
 	GetSTM(ctx context.Context, userID uint) ([]*models.Page, error)
 	GetMTM(ctx context.Context, userID uint, prompt string) ([]*models.Page, error)
 	GetLTMFromCache(ctx context.Context, userID uint) ([]*models.LongTermMemory, error)
+	AddPageToSTMCache(ctx context.Context, page *models.Page) error
+	InvalidateSTMCache(ctx context.Context, userID uint) error
 	SaveLTMToCache(ctx context.Context, userID uint, ltmRecords []*models.LongTermMemory) error
 	DeleteLTMFromCache(ctx context.Context, userID uint) error
 	GetLTM(ctx context.Context, userID uint) ([]*models.LongTermMemory, error)

@@ -46,6 +46,10 @@ func getUserSTMKey(userID uint) string {
 	return fmt.Sprintf("%d", userID)
 }
 
+func getUserSTMCacheKey(userID uint) string {
+	return fmt.Sprintf("%s:%d", consts.STMPageCachePrefix, userID)
+}
+
 func (r *mateRepo) SavePage(ctx context.Context, page *models.Page) error {
 	if err := r.pg.Debug().Create(page).Error; err != nil {
 		return err
@@ -57,7 +61,30 @@ func (r *mateRepo) SavePage(ctx context.Context, page *models.Page) error {
 		return err
 	}
 
+	if err := r.addPageToSTMCache(ctx, page); err != nil {
+		zap.L().Error("Failed to add page to STM cache",
+			zap.Uint("userID", page.UserID),
+			zap.Uint("pageID", page.ID),
+			zap.Error(err))
+	}
+
 	return nil
+}
+
+func (r *mateRepo) addPageToSTMCache(ctx context.Context, page *models.Page) error {
+	cacheKey := getUserSTMCacheKey(page.UserID)
+
+	jsonData, err := json.Marshal(page)
+	if err != nil {
+		return fmt.Errorf("failed to marshal page for cache: %w", err)
+	}
+
+	pipe := r.redisClient.Pipeline()
+	pipe.RPush(ctx, cacheKey, jsonData)
+	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
+
+	_, err = pipe.Exec(ctx)
+	return err
 }
 
 func (r *mateRepo) SendMemorySignal(ctx context.Context, userID uint) error {
