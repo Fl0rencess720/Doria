@@ -55,8 +55,8 @@ func (r *mateRepo) SavePage(ctx context.Context, page *models.Page) error {
 		return err
 	}
 
-	key := getUserSTMKey(page.UserID)
-	_, err := r.redisClient.ZIncrBy(ctx, consts.RedisSTMLengthKey, 1, key).Result()
+	key := fmt.Sprintf("%s:%d", consts.RedisSTMLengthKey, page.UserID)
+	_, err := r.redisClient.IncrBy(ctx, key, 1).Result()
 	if err != nil {
 		return err
 	}

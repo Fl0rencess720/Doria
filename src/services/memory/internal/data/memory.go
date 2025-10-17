@@ -104,15 +104,15 @@ func (r *memoryRepo) ProcessWithLock(ctx context.Context, userID uint, processFu
 
 func (r *memoryRepo) IsSTMFull(ctx context.Context, userID uint) (bool, error) {
 	STMCapacity := viper.GetInt("memory.stm_capacity")
-	key := getUserSTMKey(userID)
-	count, err := r.redisClient.ZScore(ctx, consts.RedisSTMLengthKey, key).Result()
+	key := fmt.Sprintf("%s:%d", consts.RedisSTMLengthKey, userID)
+	count, err := r.redisClient.Get(ctx, key).Int64()
 	if err != nil {
 		if err == redis.Nil {
 			return false, nil
 		}
 		return false, err
 	}
-	return count >= float64(STMCapacity), nil
+	return count >= int64(STMCapacity), nil
 }
 
 func (r *memoryRepo) GetSTMPagesToProcess(ctx context.Context, userID uint) ([]*models.Page, error) {
@@ -377,9 +377,6 @@ func (r *memoryRepo) GetLTM(ctx context.Context, userID uint) ([]*models.LongTer
 	return ltms, nil
 }
 
-func getUserSTMKey(userID uint) string {
-	return fmt.Sprintf("%d", userID)
-}
 
 func getUserLTMKey(userID uint) string {
 	return fmt.Sprintf("ltm:%d", userID)
@@ -602,9 +599,9 @@ func (r *memoryRepo) appendPagesToSegment(ctx context.Context, segmentID uint, p
 			return err
 		}
 
-		key := getUserSTMKey(page.UserID)
+		key := fmt.Sprintf("%s:%d", consts.RedisSTMLengthKey, page.UserID)
 
-		_, err := r.redisClient.ZIncrBy(ctx, consts.RedisSTMLengthKey, -1, key).Result()
+		_, err := r.redisClient.IncrBy(ctx, key, -1).Result()
 		if err != nil {
 			return err
 		}
