@@ -104,15 +104,15 @@ func (r *memoryRepo) ProcessWithLock(ctx context.Context, userID uint, processFu
 
 func (r *memoryRepo) IsSTMFull(ctx context.Context, userID uint) (bool, error) {
 	STMCapacity := viper.GetInt("memory.stm_capacity")
-	key := getUserSTMKey(userID)
-	count, err := r.redisClient.ZScore(ctx, consts.RedisSTMLengthKey, key).Result()
+	key := fmt.Sprintf("%s:%d", consts.RedisSTMLengthKey, userID)
+	count, err := r.redisClient.Get(ctx, key).Int64()
 	if err != nil {
 		if err == redis.Nil {
 			return false, nil
 		}
 		return false, err
 	}
-	return count >= float64(STMCapacity), nil
+	return count >= int64(STMCapacity), nil
 }
 
 func (r *memoryRepo) GetSTMPagesToProcess(ctx context.Context, userID uint) ([]*models.Page, error) {
@@ -377,9 +377,6 @@ func (r *memoryRepo) GetLTM(ctx context.Context, userID uint) ([]*models.LongTer
 	return ltms, nil
 }
 
-func getUserSTMKey(userID uint) string {
-	return fmt.Sprintf("%d", userID)
-}
 
 func getUserLTMKey(userID uint) string {
 	return fmt.Sprintf("ltm:%d", userID)
@@ -392,7 +389,7 @@ func getUserSTMCacheKey(userID uint) string {
 func (r *memoryRepo) getSTMFromCache(ctx context.Context, userID uint, limit int) ([]*models.Page, error) {
 	cacheKey := getUserSTMCacheKey(userID)
 
-	results, err := r.redisClient.LRange(ctx, cacheKey, int64(-limit), -1).Result()
+	results, err := r.redisClient.ZRevRangeWithScores(ctx, cacheKey, 0, int64(limit-1)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return []*models.Page{}, nil
@@ -400,18 +397,11 @@ func (r *memoryRepo) getSTMFromCache(ctx context.Context, userID uint, limit int
 		return nil, err
 	}
 
-	if len(results) == 0 {
-		return []*models.Page{}, nil
-	}
-
 	pages := make([]*models.Page, 0, len(results))
-	for _, jsonStr := range results {
+	for _, result := range results {
 		var page models.Page
-		if err := json.Unmarshal([]byte(jsonStr), &page); err != nil {
-			zap.L().Error("Failed to unmarshal page from cache",
-				zap.Uint("userID", userID),
-				zap.String("jsonStr", jsonStr),
-				zap.Error(err))
+		if err := json.Unmarshal([]byte(result.Member.(string)), &page); err != nil {
+			zap.L().Error("Failed to unmarshal page from cache", zap.Error(err))
 			continue
 		}
 		pages = append(pages, &page)
@@ -431,7 +421,7 @@ func (r *memoryRepo) saveSTMToCache(ctx context.Context, userID uint, pages []*m
 		return err
 	}
 
-	jsonPages := make([]interface{}, 0, len(pages))
+	pipe := r.redisClient.Pipeline()
 	for _, page := range pages {
 		jsonData, err := json.Marshal(page)
 		if err != nil {
@@ -441,16 +431,11 @@ func (r *memoryRepo) saveSTMToCache(ctx context.Context, userID uint, pages []*m
 				zap.Error(err))
 			continue
 		}
-		jsonPages = append(jsonPages, string(jsonData))
-	}
 
-	if len(jsonPages) == 0 {
-		return nil
-	}
-
-	pipe := r.redisClient.Pipeline()
-	for _, jsonPage := range jsonPages {
-		pipe.RPush(ctx, cacheKey, jsonPage) // 按顺序添加到尾部，保持从旧到新顺序
+		pipe.ZAdd(ctx, cacheKey, redis.Z{
+			Score:  float64(page.ID),
+			Member: jsonData,
+		})
 	}
 	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
 
@@ -467,7 +452,10 @@ func (r *memoryRepo) AddPageToSTMCache(ctx context.Context, page *models.Page) e
 	}
 
 	pipe := r.redisClient.Pipeline()
-	pipe.RPush(ctx, cacheKey, jsonData) // 添加到列表尾部
+	pipe.ZAdd(ctx, cacheKey, redis.Z{
+		Score:  float64(page.ID),
+		Member: jsonData,
+	})
 	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
 
 	_, err = pipe.Exec(ctx)
@@ -611,9 +599,9 @@ func (r *memoryRepo) appendPagesToSegment(ctx context.Context, segmentID uint, p
 			return err
 		}
 
-		key := getUserSTMKey(page.UserID)
+		key := fmt.Sprintf("%s:%d", consts.RedisSTMLengthKey, page.UserID)
 
-		_, err := r.redisClient.ZIncrBy(ctx, consts.RedisSTMLengthKey, -1, key).Result()
+		_, err := r.redisClient.IncrBy(ctx, key, -1).Result()
 		if err != nil {
 			return err
 		}

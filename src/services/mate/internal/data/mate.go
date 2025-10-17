@@ -42,9 +42,6 @@ func NewPostgres() *gorm.DB {
 	return db
 }
 
-func getUserSTMKey(userID uint) string {
-	return fmt.Sprintf("%d", userID)
-}
 
 func getUserSTMCacheKey(userID uint) string {
 	return fmt.Sprintf("%s:%d", consts.STMPageCachePrefix, userID)
@@ -55,14 +52,25 @@ func (r *mateRepo) SavePage(ctx context.Context, page *models.Page) error {
 		return err
 	}
 
-	key := getUserSTMKey(page.UserID)
-	_, err := r.redisClient.ZIncrBy(ctx, consts.RedisSTMLengthKey, 1, key).Result()
+	jsonData, err := json.Marshal(page)
 	if err != nil {
 		return err
 	}
 
-	if err := r.addPageToSTMCache(ctx, page); err != nil {
-		zap.L().Error("Failed to add page to STM cache",
+	counterKey := fmt.Sprintf("%s:%d", consts.RedisSTMLengthKey, page.UserID)
+	cacheKey := getUserSTMCacheKey(page.UserID)
+
+	pipe := r.redisClient.Pipeline()
+	pipe.IncrBy(ctx, counterKey, 1)
+	pipe.ZAdd(ctx, cacheKey, redis.Z{
+		Score:  float64(page.ID),
+		Member: jsonData,
+	})
+	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
+
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		zap.L().Error("Failed to execute Redis pipeline for page caching",
 			zap.Uint("userID", page.UserID),
 			zap.Uint("pageID", page.ID),
 			zap.Error(err))
@@ -71,21 +79,6 @@ func (r *mateRepo) SavePage(ctx context.Context, page *models.Page) error {
 	return nil
 }
 
-func (r *mateRepo) addPageToSTMCache(ctx context.Context, page *models.Page) error {
-	cacheKey := getUserSTMCacheKey(page.UserID)
-
-	jsonData, err := json.Marshal(page)
-	if err != nil {
-		return fmt.Errorf("failed to marshal page for cache: %w", err)
-	}
-
-	pipe := r.redisClient.Pipeline()
-	pipe.RPush(ctx, cacheKey, jsonData)
-	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
-
-	_, err = pipe.Exec(ctx)
-	return err
-}
 
 func (r *mateRepo) SendMemorySignal(ctx context.Context, userID uint) error {
 	signal := models.MateMessage{
