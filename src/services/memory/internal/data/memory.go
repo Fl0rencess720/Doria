@@ -392,7 +392,7 @@ func getUserSTMCacheKey(userID uint) string {
 func (r *memoryRepo) getSTMFromCache(ctx context.Context, userID uint, limit int) ([]*models.Page, error) {
 	cacheKey := getUserSTMCacheKey(userID)
 
-	results, err := r.redisClient.LRange(ctx, cacheKey, int64(-limit), -1).Result()
+	results, err := r.redisClient.ZRevRangeWithScores(ctx, cacheKey, 0, int64(limit-1)).Result()
 	if err != nil {
 		if err == redis.Nil {
 			return []*models.Page{}, nil
@@ -400,18 +400,11 @@ func (r *memoryRepo) getSTMFromCache(ctx context.Context, userID uint, limit int
 		return nil, err
 	}
 
-	if len(results) == 0 {
-		return []*models.Page{}, nil
-	}
-
 	pages := make([]*models.Page, 0, len(results))
-	for _, jsonStr := range results {
+	for _, result := range results {
 		var page models.Page
-		if err := json.Unmarshal([]byte(jsonStr), &page); err != nil {
-			zap.L().Error("Failed to unmarshal page from cache",
-				zap.Uint("userID", userID),
-				zap.String("jsonStr", jsonStr),
-				zap.Error(err))
+		if err := json.Unmarshal([]byte(result.Member.(string)), &page); err != nil {
+			zap.L().Error("Failed to unmarshal page from cache", zap.Error(err))
 			continue
 		}
 		pages = append(pages, &page)
@@ -431,7 +424,7 @@ func (r *memoryRepo) saveSTMToCache(ctx context.Context, userID uint, pages []*m
 		return err
 	}
 
-	jsonPages := make([]interface{}, 0, len(pages))
+	pipe := r.redisClient.Pipeline()
 	for _, page := range pages {
 		jsonData, err := json.Marshal(page)
 		if err != nil {
@@ -441,16 +434,11 @@ func (r *memoryRepo) saveSTMToCache(ctx context.Context, userID uint, pages []*m
 				zap.Error(err))
 			continue
 		}
-		jsonPages = append(jsonPages, string(jsonData))
-	}
 
-	if len(jsonPages) == 0 {
-		return nil
-	}
-
-	pipe := r.redisClient.Pipeline()
-	for _, jsonPage := range jsonPages {
-		pipe.RPush(ctx, cacheKey, jsonPage) // 按顺序添加到尾部，保持从旧到新顺序
+		pipe.ZAdd(ctx, cacheKey, redis.Z{
+			Score:  float64(page.ID),
+			Member: jsonData,
+		})
 	}
 	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
 
@@ -467,7 +455,10 @@ func (r *memoryRepo) AddPageToSTMCache(ctx context.Context, page *models.Page) e
 	}
 
 	pipe := r.redisClient.Pipeline()
-	pipe.RPush(ctx, cacheKey, jsonData) // 添加到列表尾部
+	pipe.ZAdd(ctx, cacheKey, redis.Z{
+		Score:  float64(page.ID),
+		Member: jsonData,
+	})
 	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
 
 	_, err = pipe.Exec(ctx)

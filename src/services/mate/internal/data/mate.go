@@ -80,7 +80,10 @@ func (r *mateRepo) addPageToSTMCache(ctx context.Context, page *models.Page) err
 	}
 
 	pipe := r.redisClient.Pipeline()
-	pipe.RPush(ctx, cacheKey, jsonData)
+	pipe.ZAdd(ctx, cacheKey, redis.Z{
+		Score:  float64(page.ID),
+		Member: jsonData,
+	})
 	pipe.Expire(ctx, cacheKey, consts.STMPageCacheTTL)
 
 	_, err = pipe.Exec(ctx)

@@ -47,7 +47,6 @@ func (c *ConsulClient) RegisterService(serviceName string) (string, error) {
 }
 
 func (c *ConsulClient) SetTTLHealthCheck() {
-
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
